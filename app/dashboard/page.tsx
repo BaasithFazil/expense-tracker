@@ -1,0 +1,505 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabaseClient'
+import { useRouter } from 'next/navigation'
+
+export default function Dashboard() {
+  const [user, setUser] = useState<any>(null)
+  const [expenses, setExpenses] = useState<any[]>([])
+  const router = useRouter()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editAmount, setEditAmount] = useState('')
+  const [editCategory, setEditCategory] = useState('')
+  const [editNote, setEditNote] = useState('')
+  const [accounts, setAccounts] = useState<any[]>([])
+  const [loaded, setLoaded] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedAccount, setSelectedAccount] = useState<any>(null)
+  const [editValue, setEditValue] = useState('')
+  
+
+  const openEditModal = (account: any) => {
+    setSelectedAccount(account)
+    setEditValue(account.balance.toString())
+    setIsModalOpen(true)
+  }
+
+  const handleSave = async () => {
+    const newAmount = Number(editValue)
+  
+    if (isNaN(newAmount) || newAmount < 0) {
+      alert('Invalid amount')
+      return
+    }
+  
+    await supabase
+      .from('accounts')
+      .update({ balance: newAmount })
+      .eq('id', selectedAccount.id)
+  
+    await fetchAccounts()
+    setIsModalOpen(false)
+  }
+
+  const total = expenses.reduce((sum, exp) => sum + exp.amount, 0)
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-LK').format(value)
+  }
+
+  const reloadData = async () => {
+    const { data: userData } = await supabase.auth.getUser()
+  
+    if (!userData.user) return
+  
+    // expenses
+    const { data: expData } = await supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', userData.user.id)
+  
+    setExpenses(expData || [])
+  
+    // accounts
+    const { data: accData } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('user_id', userData.user.id)
+  
+    setAccounts(accData || [])
+  }
+
+  const handleDelete = async (id: string) => {
+    const confirmDelete = confirm('Are you sure?')
+    if (!confirmDelete) return
+  
+    // 1️⃣ Get the expense details first
+    const { data: expense, error: fetchError } = await supabase
+      .from('expenses')
+      .select('*')
+      .eq('id', id)
+      .single()
+  
+    if (fetchError || !expense) {
+      alert('Failed to fetch expense')
+      return
+    }
+  
+    // 2️⃣ Get the related account
+    const { data: account, error: accountError } = await supabase
+      .from('accounts')
+      .select('balance')
+      .eq('id', expense.account_id)
+      .single()
+  
+    if (accountError || !account) {
+      alert('Failed to fetch account')
+      return
+    }
+  
+    // 3️⃣ Restore balance
+    const { error: updateError } = await supabase
+      .from('accounts')
+      .update({
+        balance: account.balance + expense.amount,
+      })
+      .eq('id', expense.account_id)
+  
+    if (updateError) {
+      alert('Failed to update account balance')
+      return
+    }
+  
+    // 4️⃣ Delete the expense
+    const { error: deleteError } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', id)
+  
+    if (deleteError) {
+      alert(deleteError.message)
+      return
+    }
+  
+    // 5️⃣ Refresh EVERYTHING (IMPORTANT)
+    await fetchAccounts()
+    await fetchExpenses()
+  }
+
+
+  const startEdit = (exp: any) => {
+    setEditingId(exp.id)
+    setEditAmount(exp.amount)
+    setEditCategory(exp.category)
+    setEditNote(exp.note)
+  }
+
+  const handleUpdate = async (id: string, oldAmount: number) => {
+    const newAmount = Number(editAmount)
+  
+    // 🧠 1. Get expense
+    const { data: expData } = await supabase
+      .from('expenses')
+      .select('*')
+      .eq('id', id)
+      .single()
+  
+    if (!expData) {
+      alert('Expense not found')
+      return
+    }
+  
+    const accountId = expData.account_id
+  
+    // 🧠 2. Get account
+    const { data: accountData } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('id', accountId)
+      .single()
+  
+    if (!accountData) {
+      alert('Account not found')
+      return
+    }
+  
+    // 🧠 3. Calculate difference
+    const difference = oldAmount - newAmount
+    const newBalance = accountData.balance + difference
+  
+    // 💰 4. Update expense
+    const { error: expError } = await supabase
+      .from('expenses')
+      .update({
+        amount: newAmount,
+        category: editCategory,
+        note: editNote,
+      })
+      .eq('id', id)
+  
+    if (expError) {
+      alert(expError.message)
+      return
+    }
+  
+    // 💰 5. Update account
+    const { error: accError } = await supabase
+      .from('accounts')
+      .update({ balance: newBalance })
+      .eq('id', accountId)
+  
+    if (accError) {
+      alert(accError.message)
+      return
+    }
+  
+    // ✅ 6. NOW refresh everything
+    await reloadData()
+  
+    alert('Expense updated & balance adjusted!')
+    setEditingId(null)
+  }
+
+  const totalBalance = accounts.reduce(
+    (sum, acc) => sum + acc.balance,
+    0
+  )
+
+  const fetchAccounts = async ()=> {
+   const { data, error } = await supabase
+    .from('accounts')
+    .select('*')
+    .order('created_at', {ascending: true})
+
+  if (error) {
+    console.error(error)
+    return
+  }
+  setAccounts(data)
+  }
+
+  const fetchExpenses = async () => {
+    const { data, error } = await supabase
+      .from('expenses')
+      .select('*')
+  
+    if (error) {
+      console.error(error)
+      return
+    }
+  
+    setExpenses(data)
+  }
+
+  // const updateBalance = async (id: number, value: string) => {
+  //   // 🔥 remove commas before processing
+  //   const rawValue = value.replace(/,/g, '')
+  
+  //   // ✅ allow only digits
+  //   if (!/^\d*$/.test(rawValue)) return
+  
+  //   const newAmount = Number(rawValue)
+  
+  //   // ❌ prevent negative
+  //   if (newAmount < 0) return
+  
+  //   // ✅ update UI instantly
+  //   setAccounts((prev) =>
+  //     prev.map((acc) =>
+  //       acc.id === id ? { ...acc, balance: newAmount } : acc
+  //     )
+  //   )
+  
+  //   // ✅ update DB
+  //   const { error } = await supabase
+  //     .from('accounts')
+  //     .update({ balance: newAmount })
+  //     .eq('id', id)
+  
+  //   if (error) {
+  //     console.error(error)
+  //   }
+  // }
+
+
+  useEffect(() => {
+    fetchAccounts()
+    fetchExpenses()
+    if (loaded) return
+
+    const loadData = async () => {
+      const { data: userData } = await supabase.auth.getUser()
+
+      if (!userData.user) {
+        router.push('/login')
+        return
+      }
+      setUser(userData.user)
+
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', userData.user.id)
+        .order('created_at', { ascending: false })
+
+      if (!error) {
+        setExpenses(data || [])
+      }
+
+      const { data: accData, error: accError } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', userData.user.id)
+
+        if (!accError) {
+        setAccounts(accData || [])
+        }
+    }
+
+    loadData()
+  }, [loaded])
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-6">
+  
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+          {user && <p className="text-sm text-gray-500">{user.email}</p>}
+        </div>
+  
+        <button
+          onClick={handleLogout}
+          className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+        >
+          Logout
+        </button>
+      </div>
+  
+      {/* SUMMARY CARDS */}
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-white p-5 rounded-xl shadow border">
+          <p className="text-gray-500 text-sm">Total Balance</p>
+          <h2 className="text-xl font-bold text-green-600">
+            LKR {formatCurrency(totalBalance)}
+          </h2>
+        </div>
+  
+        <div className="bg-white p-5 rounded-xl shadow border">
+          <p className="text-gray-500 text-sm">Total Expenses</p>
+          <h2 className="text-xl font-bold text-red-500">
+            LKR {formatCurrency(total)}
+          </h2>
+        </div>
+      </div>
+  
+      {/* ACCOUNTS */}
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold mb-3">Accounts</h2>
+  
+        {accounts.length === 0 && (
+          <p className="text-gray-500">No accounts yet</p>
+        )}
+  
+      <div className="grid grid-cols-2 gap-4">
+      {accounts.map((acc) => (
+          <div key={acc.id} className="border p-4 rounded">
+            <h3 className="font-semibold">{acc.name}</h3>
+
+            {/* ✅ Show balance instead of input */}
+            <p className="mt-2 text-lg font-bold">
+              LKR {formatCurrency(acc.balance)}
+            </p>
+
+            {/* ✅ Edit button */}
+            <button
+              onClick={() => openEditModal(acc)}
+              className="mt-2 px-3 py-1 bg-blue-500 text-white rounded"
+            >
+              Edit
+            </button>
+          </div>
+        ))}
+    </div>
+      </div>
+  
+      {/* EXPENSES */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Recent Expenses</h2>
+  
+        {expenses.length === 0 && (
+          <p className="text-gray-500">No expenses yet</p>
+        )}
+  
+        <div className="space-y-3">
+          {expenses.map((exp) => (
+            <div
+              key={exp.id}
+              className="bg-white p-4 rounded-xl shadow border"
+            >
+              {editingId === exp.id ? (
+                <>
+                  <input
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    className="w-full p-2 mb-2 border rounded"
+                  />
+  
+                  <input
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="w-full p-2 mb-2 border rounded"
+                  />
+  
+                  <input
+                    value={editNote}
+                    onChange={(e) => setEditNote(e.target.value)}
+                    className="w-full p-2 mb-2 border rounded"
+                  />
+  
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleUpdate(exp.id, exp.amount)}
+                      className="bg-indigo-600 text-white px-3 py-1 rounded"
+                    >
+                      Save
+                    </button>
+  
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="bg-gray-300 px-3 py-1 rounded"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-bold text-gray-800">
+                      LKR {exp.amount}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {exp.category}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {exp.note}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {new Date(exp.date).toLocaleDateString()}
+                    </p>
+                  </div>
+  
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => startEdit(exp)}
+                      className="text-blue-600 text-sm"
+                    >
+                      Edit
+                    </button>
+  
+                    <button
+                      onClick={() => handleDelete(exp.id)}
+                      className="text-red-500 text-sm"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          {isModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+              <div className="bg-white p-6 rounded w-80">
+                
+                <h2 className="text-lg font-bold mb-4">
+                  Edit {selectedAccount?.name}
+                </h2>
+
+                <input
+                  type="text"
+                  value={editValue}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/,/g, '')
+                    if (!/^\d*$/.test(raw)) return
+                    setEditValue(raw)
+                  }}
+                  className="border p-2 w-full rounded"
+                />
+
+                <div className="flex justify-end gap-2 mt-4">
+                  
+                  {/* Cancel */}
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-3 py-1 border rounded"
+                  >
+                    Cancel
+                  </button>
+
+                  {/* ✅ THIS is where handleSave goes */}
+                  <button
+                    onClick={handleSave}
+                    className="px-3 py-1 bg-green-500 text-white rounded"
+                  >
+                    Save
+                  </button>
+
+                </div>
+              </div>
+            </div>
+            )}
+        </div>
+      </div>
+    </div> 
+  )
+}
+
+
