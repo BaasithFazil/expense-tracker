@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
+import { getProfile } from '@/helper/getProfile'
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
@@ -17,6 +18,8 @@ export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<any>(null)
   const [editValue, setEditValue] = useState('')
+  const [profile, setProfile] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   
 
   const openEditModal = (account: any) => {
@@ -211,9 +214,14 @@ export default function Dashboard() {
   )
 
   const fetchAccounts = async ()=> {
-   const { data, error } = await supabase
+   const { data: userData} = await supabase.auth.getUser()
+   const user = userData.user
+
+   if(!user) return
+   const  {data, error} = await supabase
     .from('accounts')
     .select('*')
+    .eq('user_id', user.id)
     .order('created_at', {ascending: true})
 
   if (error) {
@@ -224,9 +232,16 @@ export default function Dashboard() {
   }
 
   const fetchExpenses = async () => {
-    const { data, error } = await supabase
+    const { data: userData} = await supabase.auth.getUser()
+
+    const user = userData.user
+
+    if(!user) return
+
+    const {data, error} = await supabase
       .from('expenses')
       .select('*')
+      .eq('user_id', user.id)
   
     if (error) {
       console.error(error)
@@ -235,83 +250,53 @@ export default function Dashboard() {
   
     setExpenses(data)
   }
-
-  // const updateBalance = async (id: number, value: string) => {
-  //   // 🔥 remove commas before processing
-  //   const rawValue = value.replace(/,/g, '')
-  
-  //   // ✅ allow only digits
-  //   if (!/^\d*$/.test(rawValue)) return
-  
-  //   const newAmount = Number(rawValue)
-  
-  //   // ❌ prevent negative
-  //   if (newAmount < 0) return
-  
-  //   // ✅ update UI instantly
-  //   setAccounts((prev) =>
-  //     prev.map((acc) =>
-  //       acc.id === id ? { ...acc, balance: newAmount } : acc
-  //     )
-  //   )
-  
-  //   // ✅ update DB
-  //   const { error } = await supabase
-  //     .from('accounts')
-  //     .update({ balance: newAmount })
-  //     .eq('id', id)
-  
-  //   if (error) {
-  //     console.error(error)
-  //   }
-  // }
-
-
   useEffect(() => {
-    fetchAccounts()
-    fetchExpenses()
-    if (loaded) return
-
-    const loadData = async () => {
-      const { data: userData } = await supabase.auth.getUser()
-
-      if (!userData.user) {
+    const init = async () => {
+      // 1️⃣ Get user
+      const { data: { session } } = await supabase.auth.getSession()
+  
+      if (!session) {
         router.push('/login')
         return
       }
-      setUser(userData.user)
-
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', userData.user.id)
-        .order('created_at', { ascending: false })
-
-      if (!error) {
-        setExpenses(data || [])
+  
+      const user = session.user
+      setUser(user)
+  
+      // 2️⃣ Get profile
+      const { data: profileData } = await getProfile(user.id)
+  
+      if (!profileData?.username) {
+        router.push('/setup-profile')
+        return
       }
-
-      const { data: accData, error: accError } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('user_id', userData.user.id)
-
-        if (!accError) {
-        setAccounts(accData || [])
-        }
+  
+      setProfile(profileData)
+  
+      // 3️⃣ Fetch app data
+      await fetchAccounts()
+      await fetchExpenses()
+  
+      setLoading(false)
     }
+  
+    init()
+  }, [])
 
-    loadData()
-  }, [loaded])
+  if (loading) return <p>Loading...</p>
 
-  return (
+ return (
     <div className="min-h-screen bg-gray-100 p-6">
   
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-          {user && <p className="text-sm text-gray-500">{user.email}</p>}
+          {user && (
+          <p className="text-sm text-gray-500">
+            Welcome, {profile?.username || user.email}
+          </p>
+        )}
         </div>
   
         <button
@@ -348,24 +333,55 @@ export default function Dashboard() {
         )}
   
       <div className="grid grid-cols-2 gap-4">
-      {accounts.map((acc) => (
-          <div key={acc.id} className="border p-4 rounded">
-            <h3 className="font-semibold">{acc.name}</h3>
+      {accounts.map((acc, index) => {
+        const gradients = [
+          'from-indigo-500 to-purple-600',
+          'from-green-400 to-emerald-600',
+          'from-pink-500 to-rose-500',
+          'from-blue-500 to-cyan-500',
 
-            {/* ✅ Show balance instead of input */}
-            <p className="mt-2 text-lg font-bold">
-              LKR {formatCurrency(acc.balance)}
-            </p>
+        ]
 
-            {/* ✅ Edit button */}
-            <button
-              onClick={() => openEditModal(acc)}
-              className="mt-2 px-3 py-1 bg-blue-500 text-white rounded"
-            >
-              Edit
-            </button>
-          </div>
-        ))}
+        const gradient = acc.color || 'from-gray-400 to-gray-600'
+
+        return(
+          <div
+          key={acc.id}
+          className={`rounded-2xl p-5 text-white shadow-lg bg-linear-to-br ${gradient} relative overflow-hidden`}
+        >
+          {/* Card chip */}
+          <div className="w-10 h-6 bg-black-300 rounded mb-4"></div>
+  
+          {/* Account Name */}
+          <p className="text-sm opacity-80">{acc.name}</p>
+  
+          {/* Balance */}
+          <h2 className="text-xl font-bold mt-1">
+            LKR {formatCurrency(acc.balance)}
+          </h2>
+  
+          {/* Fake card number */}
+          <p className="text-xs mt-4 opacity-70 tracking-widest">
+            •••• •••• •••• {acc.id.slice(-4)}
+          </p>
+  
+          {/* Optional Edit */}
+          <button className="absolute bottom-3 right-3 text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30"
+          onClick={() => openEditModal(acc)}
+          >
+            Edit
+          </button>
+        </div>
+        )
+
+      })}
+      <div
+        onClick={() => router.push('/add-account')}
+        className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition"
+      >
+        <div className="text-3xl text-gray-400">+</div>
+        <p className="text-sm text-gray-500 mt-1">Add Account</p>
+      </div>
     </div>
       </div>
   
@@ -436,17 +452,17 @@ export default function Dashboard() {
                     </p>
                   </div>
   
-                  <div className="flex flex-col gap-2">
+                  <div className="flex gap-3 text-sm">
                     <button
                       onClick={() => startEdit(exp)}
-                      className="text-blue-600 text-sm"
+                      className="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
                     >
                       Edit
                     </button>
   
                     <button
                       onClick={() => handleDelete(exp.id)}
-                      className="text-red-500 text-sm"
+                      className="px-3 py-1 text-sm bg-red-100 text-red-600 rounded hover:bg-red-200"
                     >
                       Delete
                     </button>
@@ -460,7 +476,7 @@ export default function Dashboard() {
               <div className="bg-white p-6 rounded w-80">
                 
                 <h2 className="text-lg font-bold mb-4">
-                  Edit {selectedAccount?.name}
+                  Edit{selectedAccount?.name}
                 </h2>
 
                 <input

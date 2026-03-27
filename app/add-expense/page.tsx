@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { useRouter } from 'next/navigation'
+
 
 export default function AddExpense() {
   const [amount, setAmount] = useState('')
@@ -11,6 +13,11 @@ export default function AddExpense() {
   const [accountId, setAccountId] = useState('')
   const [amountError, setAmountError] = useState('')
   const [accountError, setAccountError] = useState('')
+  const router = useRouter()
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-LK').format(value)
+  }
 
   const handleAdd = async () => {
     const { data: userData } = await supabase.auth.getUser()
@@ -161,10 +168,25 @@ export default function AddExpense() {
             <option value="">Select Account</option>
             {accounts.map((acc) => (
               <option key={acc.id} value={acc.id}>
-                {acc.name} (LKR {acc.balance})
+                {acc.name} (LKR {formatCurrency(acc.balance)})
               </option>
             ))}
           </select>
+
+          {accounts.length === 0 && (
+              <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                <p className="text-sm text-yellow-700 mb-2">
+                  No accounts found
+                </p>
+
+                <button
+                  onClick={() => router.push('/add-account')}
+                  className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+                >
+                  + Add Account
+                </button>
+              </div>
+            )}
   
           {accountError && (
             <p className="text-red-500 text-xs mt-1">{accountError}</p>
@@ -180,6 +202,12 @@ export default function AddExpense() {
             onChange={(e) => setAmount(e.target.value)}
             className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
           />
+
+          {amount && !isNaN(Number(amount)) && (
+            <p className="text-sm text-gray-500 mt-1">
+              LKR {formatCurrency(Number(amount))}
+            </p>
+          )}
   
           {amountError && (
             <p className="text-red-500 text-xs mt-1">{amountError}</p>

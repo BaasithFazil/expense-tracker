@@ -8,6 +8,16 @@ export default function AddAccount() {
   const [name, setName] = useState('')
   const [balance, setBalance] = useState('')
   const router = useRouter()
+  
+  const colors = [
+    'from-indigo-500 to-purple-600',
+    'from-green-400 to-emerald-600',
+    'from-pink-500 to-rose-500',
+    'from-blue-500 to-cyan-500',
+    'from-orange-400 to-red-500',
+  ]
+
+  const [selectedColor, setSelectedColor] = useState(colors[0])
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-LK').format(value)
@@ -22,23 +32,7 @@ export default function AddAccount() {
   
     setBalance(rawValue)
   }
-
-  const handleSubmit = async () => {
-    const numericBalance = Number(balance)
   
-    if (!balance || isNaN(numericBalance) || numericBalance < 0) {
-      alert('Enter valid balance')
-      return
-    }
-  
-    await supabase.from('accounts').insert([
-      {
-        name,
-        balance: numericBalance, // ✅ clean number
-      },
-    ])
-  }
-
   const handleAddAccount = async () => {
     const { data: userData } = await supabase.auth.getUser()
     const user = userData.user
@@ -53,6 +47,7 @@ export default function AddAccount() {
         user_id: user.id,
         name,
         balance: Number(balance),
+        color: selectedColor,
       },
     ])
 
@@ -79,10 +74,27 @@ export default function AddAccount() {
           <label className="text-sm text-gray-600">Account Name</label>
           <input
             placeholder="Cash, Bank, Wallet..."
+            maxLength={12}
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
           />
+        </div>
+
+        <div className="mb-4">
+          <label className="text-sm text-gray-600">Choose Card Color</label>
+
+          <div className="flex gap-3 mt-2">
+            {colors.map((color) => (
+              <div
+                key={color}
+                onClick={() => setSelectedColor(color)} 
+                className={`w-10 h-10 rounded-full cursor-pointer bg-linear-to-br ${color} ${
+                  selectedColor === color ? 'ring-2 ring-black' : ''
+                }`}
+              />
+            ))}
+          </div>
         </div>
   
         {/* BALANCE */}
