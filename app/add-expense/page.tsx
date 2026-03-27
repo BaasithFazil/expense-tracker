@@ -124,9 +124,7 @@ export default function AddExpense() {
     } else {
       alert('Expense added & balance updated!')
   
-      setAmount('')
-      setCategory('')
-      setNote('')
+      router.push('/dashboard')
     }
   }
 
@@ -243,6 +241,13 @@ export default function AddExpense() {
           className="w-full bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Add Expense
+        </button>
+
+        <button
+          onClick={() => router.push('/dashboard')}
+          className="w-full mt-3 text-sm text-gray-500 hover:underline"
+        >
+          ← Back to Dashboard
         </button>
       </div>
     </div>

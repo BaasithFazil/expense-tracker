@@ -514,8 +514,16 @@ export default function Dashboard() {
             )}
         </div>
       </div>
+      <button
+        onClick={() => router.push('/add-expense')}
+        className="fixed bottom-6 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-lg hover:bg-indigo-700 transition flex items-center justify-center hover:scale-110 active:scale-95"
+      >
+        💸
+      </button>
     </div> 
   )
+
+  
 }
 
 
