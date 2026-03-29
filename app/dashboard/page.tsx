@@ -116,17 +116,54 @@ export default function Dashboard() {
     }
   
     // 3️⃣ Restore balance
-    const { error: updateError } = await supabase
-      .from('accounts')
-      .update({
-        balance: account.balance + expense.amount,
-      })
-      .eq('id', expense.account_id)
-  
-    if (updateError) {
-      alert('Failed to update account balance')
-      return
-    }
+    // 3️⃣ Restore balance (FIXED LOGIC)
+
+      if (expense.type === 'expense') {
+        // add back
+        await supabase
+          .from('accounts')
+          .update({
+            balance: account.balance + expense.amount,
+          })
+          .eq('id', expense.account_id)
+      }
+
+      else if (expense.type === 'income') {
+        // remove added income
+        await supabase
+          .from('accounts')
+          .update({
+            balance: account.balance - expense.amount,
+          })
+          .eq('id', expense.account_id)
+      }
+
+      else if (expense.type === 'transfer') {
+        // 🔥 1️⃣ revert FROM account
+        await supabase
+          .from('accounts')
+          .update({
+            balance: account.balance + expense.amount,
+          })
+          .eq('id', expense.account_id)
+
+        // 🔥 2️⃣ get TO account
+        const { data: toAccount } = await supabase
+          .from('accounts')
+          .select('balance')
+          .eq('id', expense.to_account_id)
+          .single()
+
+        if (toAccount) {
+          // 🔥 3️⃣ revert TO account
+          await supabase
+            .from('accounts')
+            .update({
+              balance: toAccount.balance - expense.amount,
+            })
+            .eq('id', expense.to_account_id)
+        }
+      }
   
     // 4️⃣ Delete the expense
     const { error: deleteError } = await supabase
