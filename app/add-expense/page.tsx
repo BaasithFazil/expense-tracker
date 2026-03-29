@@ -13,6 +13,8 @@ export default function AddExpense() {
   const [accountId, setAccountId] = useState('')
   const [amountError, setAmountError] = useState('')
   const [accountError, setAccountError] = useState('')
+  const [type, setType] = useState<'expense' | 'income' | 'transfer'>('expense')
+   const [toAccountId, setToAccountId] = useState('')
   const router = useRouter()
 
   const formatCurrency = (value: number) => {
@@ -92,17 +94,54 @@ export default function AddExpense() {
 
     if (!valid) return
   
-    const newBalance = currentBalance - expenseAmount
+    // const newBalance = currentBalance - expenseAmount
+
+    let newBalance;
+
+    if(type === 'expense'){
+      newBalance = currentBalance - expenseAmount
+    } 
+    
+    if (type === 'income'){
+      newBalance = currentBalance + expenseAmount
+    }
+
+    if (type === 'transfer') {
+      // 1️⃣ subtract from FROM account
+      await supabase
+        .from('accounts')
+        .update({ balance: currentBalance - expenseAmount })
+        .eq('id', accountId)
+    
+      // 2️⃣ get TO account
+      const { data: toAccount } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('id', toAccountId)
+        .single()
+    
+      // 3️⃣ add to TO account
+      await supabase
+        .from('accounts')
+        .update({
+          balance: toAccount.balance + expenseAmount,
+        })
+        .eq('id', toAccountId)
+    }
+
+
   
     // 💰 2. Insert expense (ONLY ONCE)
     const { error: insertError } = await supabase.from('expenses').insert([
       {
         user_id: user.id,
         amount: expenseAmount,
-        category,
-        note,
+        category: 'Transfer',
+        note: `Transfer`,
         date: new Date().toISOString(),
         account_id: accountId,
+        type: type,
+        to_account_id: type === 'transfer' ? toAccountId : null
       },
     ])
   
@@ -154,6 +193,41 @@ export default function AddExpense() {
         <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
           Add Expense 💸
         </h2>
+
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setType('expense')}
+            className={`flex-1 py-2 rounded ${
+              type === 'expense'
+                ? 'bg-red-500 text-white'
+                : 'bg-gray-200'
+            }`}
+          >
+            Expense
+          </button>
+
+          <button
+            onClick={() => setType('income')}
+            className={`flex-1 py-2 rounded ${
+              type === 'income'
+                ? 'bg-green-500 text-white'
+                : 'bg-gray-200'
+            }`}
+          >
+            Income
+          </button>
+
+          <button
+            onClick={() => setType('transfer')}
+            className={`flex-1 py-2 rounded ${
+              type === 'transfer'
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200'
+            }`}
+          >
+            Transfer
+          </button>
+        </div>
   
         {/* ACCOUNT SELECT */}
         <div className="mb-4">
@@ -170,6 +244,30 @@ export default function AddExpense() {
               </option>
             ))}
           </select>
+
+          {type === 'transfer' && (
+          <div className="mt-3">
+            <label className="text-sm text-gray-600">
+              Transfer To Account
+            </label>
+
+            <select
+              value={toAccountId}
+              onChange={(e) => setToAccountId(e.target.value)}
+              className="w-full mt-1 p-3 border rounded-lg"
+            >
+              <option value="">Select account</option>
+
+              {accounts
+                .filter(acc => acc.id !== accountId) // prevent same account
+                .map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name}
+                  </option>
+                ))}
+            </select>
+          </div>
+        )}
 
           {accounts.length === 0 && (
               <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">

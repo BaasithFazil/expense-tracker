@@ -45,7 +45,17 @@ export default function Dashboard() {
     setIsModalOpen(false)
   }
 
-  const total = expenses.reduce((sum, exp) => sum + exp.amount, 0)
+  // const total = expenses.reduce((sum, exp) => sum + exp.amount, 0)
+
+
+  const totalExpenses = expenses
+  .filter((e)=> e.type === 'expense')
+  .reduce((sum, e)=> sum + e.amount, 0)
+
+  const totalIncome = expenses
+  .filter((e) => e.type === 'income')
+  .reduce((sum, e) => sum + e.amount, 0)
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
@@ -319,7 +329,14 @@ export default function Dashboard() {
         <div className="bg-white p-5 rounded-xl shadow border">
           <p className="text-gray-500 text-sm">Total Expenses</p>
           <h2 className="text-xl font-bold text-red-500">
-            LKR {formatCurrency(total)}
+            LKR {formatCurrency(totalExpenses)}
+          </h2>
+        </div>
+
+        <div className="bg-white p-5 rounded-xl shadow border">
+          <p className="text-gray-500 text-sm">Total Income</p>
+          <h2 className="text-xl font-bold text-green-500">
+            LKR {formatCurrency(totalIncome)}
           </h2>
         </div>
       </div>
@@ -387,13 +404,15 @@ export default function Dashboard() {
   
       {/* EXPENSES */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Recent Expenses</h2>
+        <h2 className="text-lg font-semibold mb-3">Recent Transactions</h2>
   
         {expenses.length === 0 && (
           <p className="text-gray-500">No expenses yet</p>
         )}
   
         <div className="space-y-3">
+          
+          
           {expenses.map((exp) => (
             <div
               key={exp.id}
@@ -438,9 +457,6 @@ export default function Dashboard() {
               ) : (
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="font-bold text-gray-800">
-                      LKR {exp.amount}
-                    </p>
                     <p className="text-sm text-gray-500">
                       {exp.category}
                     </p>
@@ -449,6 +465,20 @@ export default function Dashboard() {
                     </p>
                     <p className="text-xs text-gray-400">
                       {new Date(exp.date).toLocaleDateString()}
+                    </p>
+
+                    <p className={`font-bold ${
+                      exp.type === 'expense'
+                        ? 'text-red-500'
+                        : exp.type === 'income'
+                        ? 'text-green-500'
+                        : 'text-blue-500'
+                    }`}>
+                      {exp.type === 'expense'
+                        ? '-'
+                        : exp.type === 'income'
+                        ? '+'
+                        : '↔'} LKR {exp.amount}
                     </p>
                   </div>
   
@@ -469,6 +499,18 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
+
+                  <p
+                    className={`text-xs font-bold uppercase ${
+                      exp.type === 'expense'
+                        ? 'text-red-500'
+                        : exp.type === 'income'
+                        ? 'text-green-500'
+                        : 'text-blue-500'
+                    }`}
+                  >
+                    {exp.type}
+                  </p>
             </div>
           ))}
           {isModalOpen && (
