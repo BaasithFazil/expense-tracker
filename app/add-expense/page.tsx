@@ -136,8 +136,8 @@ export default function AddExpense() {
       {
         user_id: user.id,
         amount: expenseAmount,
-        category: 'Transfer',
-        note: `Transfer`,
+        category: category,
+        note: note,
         date: new Date().toISOString(),
         account_id: accountId,
         type: type,

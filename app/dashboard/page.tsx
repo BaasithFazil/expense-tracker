@@ -504,7 +504,7 @@ export default function Dashboard() {
                       {new Date(exp.date).toLocaleDateString()}
                     </p>
 
-                    <p className={`font-bold ${
+                    <p className={`font-bold uppercase ${
                       exp.type === 'expense'
                         ? 'text-red-500'
                         : exp.type === 'income'
@@ -546,7 +546,12 @@ export default function Dashboard() {
                         : 'text-blue-500'
                     }`}
                   >
-                    {exp.type}
+                    {exp.type === 'expense'
+                    ? 'Expense'
+                    : exp.type === 'income'
+                    ? 'Income'
+                    : 'Transfer'
+                    }
                   </p>
             </div>
           ))}
