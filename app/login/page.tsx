@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -35,33 +35,33 @@ export default function LoginPage() {
     else alert('Check your email!')
   }
 
-  useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!session) {
-          router.push('/login')
-        }
-      }
-    )
+  // useEffect(() => {
+  //   const { data: listener } = supabase.auth.onAuthStateChange(
+  //     (event, session) => {
+  //       if (!session) {
+  //         router.push('/login')
+  //       }
+  //     }
+  //   )
   
-    return () => {
-      listener.subscription.unsubscribe()
-    }
-  }, [])
+  //   return () => {
+  //     listener.subscription.unsubscribe()
+  //   }
+  // }, [])
 
   return (
     <>    
 
 <div className="min-h-screen flex">
       {/* LEFT SIDE */}
-      <div className="hidden md:flex w-1/2 bg-gradient-to-br from-indigo-600 to-purple-700 items-center justify-center text-white p-10">
+      <div className="hidden md:flex w-1/2 bg-linear-to-br from-indigo-600 to-purple-700 items-center justify-center text-white p-10">
         <div>
           <h1 className="text-4xl font-bold mb-4">Welcome Back 👋</h1>
           <p className="text-lg">
             Login to manage your smart expense tracker.
           </p>
         </div>
-      </div>
+      </div>  
 
       {/* RIGHT SIDE */}
       <div className="flex w-full md:w-1/2 items-center justify-center bg-white">
@@ -119,7 +119,7 @@ export default function LoginPage() {
           </div>
 
           {/* SOCIAL LOGIN */}
-          <button className="w-full border p-3 rounded-lg mb-2 hover:bg-gray-100">
+          <button disabled className="w-full border p-3 rounded-lg mb-2 hover:bg-gray-100">
             Continue with Google
           </button>
           <button className="w-full border p-3 rounded-lg hover:bg-gray-100">
@@ -129,9 +129,15 @@ export default function LoginPage() {
           {/* SIGNUP */}
           <p className="text-center text-sm mt-4">
             Don't have an account?{" "}
-            <a href="#" className="text-indigo-600 font-medium" onClick={handleSignup}>
+            {/* <a href="#" className="text-indigo-600 font-medium" onClick={handleSignup}>
               Sign up
-            </a>
+            </a> */
+            <button onClick={()=> router.push('/signup')} className="text-indigo-600 font-medium"> Sign Up </button>
+            
+            
+            }
+
+            
           </p>
         </div>
       </div>
