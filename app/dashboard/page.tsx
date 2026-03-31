@@ -329,11 +329,11 @@ export default function Dashboard() {
   
     init()
   }, [])
-
   if (loading) return <p>Loading...</p>
 
  return (
-    <div className="min-h-screen bg-gray-100 p-6">
+  <>
+<div className="bg-gray-100 min-h-screen p-6">
   
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
@@ -342,10 +342,9 @@ export default function Dashboard() {
           {user && (
           <p className="text-sm text-gray-500">
             Welcome, {profile?.username || user.email}
-          </p>
+          </p>  
         )}
         </div>
-  
         <button
           onClick={handleLogout}
           className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
@@ -353,9 +352,9 @@ export default function Dashboard() {
           Logout
         </button>
       </div>
-  
+
       {/* SUMMARY CARDS */}
-      <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
         <div className="bg-white p-5 rounded-xl shadow border">
           <p className="text-gray-500 text-sm">Total Balance</p>
           <h2 className="text-xl font-bold text-green-600">
@@ -377,9 +376,9 @@ export default function Dashboard() {
           </h2>
         </div>
       </div>
-  
+
       {/* ACCOUNTS */}
-      <div className="mb-6">
+            <div className="mb-6">
         <h2 className="text-lg font-semibold mb-3">Accounts</h2>
   
         {accounts.length === 0 && (
@@ -401,7 +400,7 @@ export default function Dashboard() {
         return(
           <div
           key={acc.id}
-          className={`rounded-2xl p-5 text-white shadow-lg bg-linear-to-br ${gradient} relative overflow-hidden`}
+          className={`rounded-2xl p-5 text-white shadow-lg relative z-0 bg-linear-to-br ${gradient} relative overflow-hidden`}
         >
           {/* Card chip */}
           <div className="w-10 h-6 bg-black-300 rounded mb-4"></div>
@@ -421,7 +420,7 @@ export default function Dashboard() {
   
           {/* Optional Edit */}
           <button className="absolute bottom-3 right-3 text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30"
-          onClick={() => openEditModal(acc)}
+          onClick={() => router.push(`/edit-account/${acc.id}`)}
           >
             Edit
           </button>
@@ -438,9 +437,10 @@ export default function Dashboard() {
       </div>
     </div>
       </div>
-  
-      {/* EXPENSES */}
-      <div>
+
+
+            {/* EXPENSES */}
+            <div>
         <h2 className="text-lg font-semibold mb-3">Recent Transactions</h2>
   
         {expenses.length === 0 && (
@@ -593,13 +593,16 @@ export default function Dashboard() {
             )}
         </div>
       </div>
+
       <button
         onClick={() => router.push('/add-expense')}
         className="fixed bottom-6 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-lg hover:bg-indigo-700 transition flex items-center justify-center hover:scale-110 active:scale-95"
       >
         💸
       </button>
-    </div> 
+          </div>
+      
+    </> 
   )
 
   
