@@ -67,9 +67,13 @@ export default function AddExpense() {
       return
     }
   
-    // ❌ prevent overspending
-    if (expenseAmount > currentBalance) {
-      alert('Insufficient balance')
+    if (type === 'expense' && expenseAmount > currentBalance) {
+      alert('Insufficient Balance')
+      return
+    }
+
+    if(type === 'transfer' && expenseAmount > currentBalance) {
+      alert('Insufficient balance to transfer')
       return
     }
 
@@ -161,7 +165,13 @@ export default function AddExpense() {
     if (updateError) {
       alert(updateError.message)
     } else {
-      alert('Expense added & balance updated!')
+      const message =
+        type === 'expense'
+          ? 'Expense added & balance updated!'
+          : type === 'income'
+          ? 'Income added & balance updated!'
+          : 'Transfer completed!'
+        alert(message)
   
       router.push('/dashboard')
     }
@@ -191,7 +201,9 @@ export default function AddExpense() {
       <div className="w-full max-w-lg bg-white p-8 rounded-2xl shadow-2xl border border-gray-200">
   
         <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
-          Add Expense 💸
+        {type === 'expense' && 'Add Expense 💸'}
+        {type === 'income' && 'Add Income 💰'}
+        {type === 'transfer' && 'Transfer Money 🔄'}
         </h2>
 
         <div className="flex gap-2 mb-4">
@@ -338,7 +350,9 @@ export default function AddExpense() {
           disabled={!amount || Number(amount) <= 0 || !accountId}
           className="w-full bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Add Expense
+          {type === 'expense' && 'Add Expense'}
+          {type === 'income' && 'Add Income'}
+          {type === 'transfer' && 'Transfer'}
         </button>
 
         <button
