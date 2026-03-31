@@ -338,7 +338,7 @@ export default function Dashboard() {
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Dashboard B</h1>
           {user && (
           <p className="text-sm text-gray-500">
             Welcome, {profile?.username || user.email}
