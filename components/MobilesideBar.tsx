@@ -59,7 +59,7 @@ type Props = {
                 </li>
 
                 <li className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition"
-                onClick={()=> router.push('dashboard')}>
+                onClick={()=> router.push('add-account')}>
                 <span>💼</span>
                 <span>Accounts</span>
                 </li>
