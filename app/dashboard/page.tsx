@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import { getProfile } from '@/helper/getProfile'
+import Navbar from '@/components/Navbar'
+
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
@@ -21,13 +23,7 @@ export default function Dashboard() {
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   
-
-  const openEditModal = (account: any) => {
-    setSelectedAccount(account)
-    setEditValue(account.balance.toString())
-    setIsModalOpen(true)
-  }
-
+  
   const handleSave = async () => {
     const newAmount = Number(editValue)
   
@@ -44,9 +40,6 @@ export default function Dashboard() {
     await fetchAccounts()
     setIsModalOpen(false)
   }
-
-  // const total = expenses.reduce((sum, exp) => sum + exp.amount, 0)
-
 
   const totalExpenses = expenses
   .filter((e)=> e.type === 'expense')
@@ -115,7 +108,6 @@ export default function Dashboard() {
       return
     }
   
-    // 3️⃣ Restore balance
     // 3️⃣ Restore balance (FIXED LOGIC)
 
       if (expense.type === 'expense') {
@@ -333,25 +325,10 @@ export default function Dashboard() {
 
  return (
   <>
-<div className="bg-gray-100 min-h-screen p-6">
+
+<Navbar user={user} profile={profile} onLogout={handleLogout} />
   
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard B</h1>
-          {user && (
-          <p className="text-sm text-gray-500">
-            Welcome, {profile?.username || user.email}
-          </p>  
-        )}
-        </div>
-        <button
-          onClick={handleLogout}
-          className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
-        >
-          Logout
-        </button>
-      </div>
+<div className="bg-gray-100 min-h-screen px-4 py-6">
 
       {/* SUMMARY CARDS */}
             <div className="grid md:grid-cols-2 gap-4 mb-6">
@@ -400,13 +377,13 @@ export default function Dashboard() {
         return(
           <div
           key={acc.id}
-          className={`rounded-2xl p-5 text-white shadow-lg relative z-0 bg-linear-to-br ${gradient} relative overflow-hidden`}
+          className={`rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${gradient} relative`}
         >
           {/* Card chip */}
           <div className="w-10 h-6 bg-black-300 rounded mb-4"></div>
   
           {/* Account Name */}
-          <p className="text-sm opacity-80">{acc.name}</p>
+          <p className="">{acc.name}</p>
   
           {/* Balance */}
           <h2 className="text-xl font-bold mt-1">
@@ -414,9 +391,11 @@ export default function Dashboard() {
           </h2>
   
           {/* Fake card number */}
-          <p className="text-xs mt-4 opacity-70 tracking-widest">
+          <p className="">
             •••• •••• •••• {acc.id.slice(-4)}
           </p>
+
+          {/* text-xs mt-4 opacity-70 tracking-widest */}
   
           {/* Optional Edit */}
           <button className="absolute bottom-3 right-3 text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30"

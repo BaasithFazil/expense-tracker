@@ -50,6 +50,12 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="w-full max-w-md p-8 rounded-2xl shadow-lg">
+
+        <div>
+          <h1 className='text-center text-sm text-red-600 text-xl font-bold'>Creation Disabled</h1>
+          <p className='text-center text-sm text-red-600'>Disabled for now. Need an account? Contact Baasith </p>
+        </div>
+
         <h2 className="text-2xl font-bold mb-6 text-center">
           Create Account
         </h2>
@@ -75,7 +81,7 @@ export default function SignupPage() {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        <button
+        <button disabled
           onClick={handleSignup}
           className="w-full bg-indigo-600 text-white p-3 rounded-lg"
         >
@@ -91,6 +97,8 @@ export default function SignupPage() {
             Login
           </button>
         </p>
+
+        
       </div>
     </div>
   )
