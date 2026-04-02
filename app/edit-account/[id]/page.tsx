@@ -1,8 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter, useParams } from 'next/navigation'
+import { Listbox, Transition } from '@headlessui/react'
+
+// const options = ['Cash', 'Debit Card', 'Credit Card', 'Savings', 'Wallet']
+
+const options = [
+  {label: "Cash", value: "cash"},
+  {label: "Debit Card", value: "debit"},
+  {label: "Credit Card", value: "credit"},
+  {label: "Wallet", value: "wallet"},
+  {label: "Savings", value: "savings"},
+
+]
 
 export default function EditAccount() {
   const router = useRouter()
@@ -13,6 +25,8 @@ export default function EditAccount() {
   const [balance, setBalance] = useState('')
   const [oldBalance, setOldBalance] = useState(0)
   const [selectedColor, setSelectedColor] = useState('')
+  const [type, setType] = useState('')
+  const [selected, setSelected] = useState(options[0])
 
   const colors = [
     'from-indigo-500 to-purple-600',
@@ -46,6 +60,7 @@ export default function EditAccount() {
         setBalance(data.balance.toString())
         setOldBalance(data.balance)
         setSelectedColor(data.color)
+        setType(data.type)
       }
     }
 
@@ -68,6 +83,7 @@ export default function EditAccount() {
         name,
         balance: newBalance,
         color: selectedColor,
+        type: type,
       })
       .eq('id', id)
 
@@ -104,8 +120,62 @@ export default function EditAccount() {
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full mt-1 p-3 border rounded-lg"
+            className="w-full mt-1 p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500"
           />
+        </div>
+
+        {/*Account Type*/}
+        <div className="mb-4 relative">
+          <label className="block text-sm mb-1">Account Type</label>
+
+          <Listbox value={type} onChange={setType}>
+          <div className="relative">
+            
+            <Listbox.Button className="bg-white text-gray-400 px-4 py-2 w-full text-left border border-gray-300 rounded-lg">
+            {options.find((o) => o.value === type)?.label || "Select type"}
+            </Listbox.Button>
+
+            <Transition
+              as={Fragment}
+              enter="transition ease-out duration-200"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="transition ease-in duration-150"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <Listbox.Options className="absolute z-10 mt-2 w-full text-black bg-white shadow-lg rounded-lg border border-gray-300">
+                {options.map((option) => (
+                  <Listbox.Option
+                    key={option.label}
+                    value={option.value}
+                    className={({ active }) =>
+                      `p-2 cursor-pointer ${
+                        active ? "bg-gray-200" : ""
+                      }`
+                    }
+                  >
+                    {option.label}
+                  </Listbox.Option>
+                ))}
+              </Listbox.Options>
+            </Transition>
+
+          </div>
+        </Listbox>
+
+          {/* <select
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            className="w-full mt-1 p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+          >
+            <option className="text-red-600"value="">Select type</option>
+            <option value="cash">Cash</option>
+            <option value="debit">Debit Card</option>
+            <option value="credit">Credit Card</option>
+            <option value="savings">Savings</option>
+            <option value="wallet">Wallet</option>
+          </select> */}
         </div>
 
         {/* COLOR */}
@@ -131,7 +201,7 @@ export default function EditAccount() {
           <input
             value={balance ? formatCurrency(Number(balance)) : ''}
             onChange={(e) => handleBalanceChange(e.target.value)}
-            className="w-full mt-1 p-3 border rounded-lg"
+            className="w-full mt-1 p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500"
           />
         </div>
 

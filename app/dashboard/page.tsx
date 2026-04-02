@@ -391,7 +391,10 @@ export default function Dashboard() {
         return(
           <div
           key={acc.id}
-          className={`rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${gradient} relative`}
+          onClick={() => {
+            router.push(`/account/${acc.id}`)
+          }}
+          className={`rounded-2xl p-5 text-white shadow-lg bg-linear-to-br ${gradient} relative`}
         >
           {/* Card chip */}
           <div className="w-10 h-6 bg-black-300 rounded mb-4"></div>
@@ -409,11 +412,16 @@ export default function Dashboard() {
             •••• •••• •••• {acc.id.slice(-4)}
           </p>
 
+          <p className="text-xs opacity-80 uppercase">
+            {acc.type}
+          </p>
+
           {/* text-xs mt-4 opacity-70 tracking-widest */}
   
           {/* Optional Edit */}
           <button className="absolute bottom-3 right-3 text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30"
-          onClick={() => router.push(`/edit-account/${acc.id}`)}
+          onClick={(e) => { e.stopPropagation() 
+          router.push(`/edit-account/${acc.id}`)}}
           >
             Edit
           </button>
