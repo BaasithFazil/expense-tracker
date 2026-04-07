@@ -279,7 +279,11 @@ export default function Dashboard() {
 
     const {data, error} = await supabase
       .from('expenses')
-      .select('*')
+      .select(`
+      *,
+      account:accounts!expenses_account_id_fkey(name),
+      to_account:accounts!expenses_to_account_id_fkey(name)
+    `)
       .eq('user_id', user.id)
   
     if (error) {
@@ -503,6 +507,11 @@ export default function Dashboard() {
                     </p>
                     <p className="text-xs text-gray-400">
                       {new Date(exp.date).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm font-semibold text-gray-500">
+                      {exp.type === 'transfer'
+                        ? `${exp.account?.name} → ${exp.to_account?.name}`
+                        : exp.account?.name}
                     </p>
 
                     <p className={`font-bold uppercase ${

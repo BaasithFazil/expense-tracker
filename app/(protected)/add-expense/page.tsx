@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import toast from 'react-hot-toast'
 
 
 export default function AddExpense() {
@@ -14,8 +15,12 @@ export default function AddExpense() {
   const [amountError, setAmountError] = useState('')
   const [accountError, setAccountError] = useState('')
   const [type, setType] = useState<'expense' | 'income' | 'transfer'>('expense')
-   const [toAccountId, setToAccountId] = useState('')
+  const [toAccountId, setToAccountId] = useState('')
   const router = useRouter()
+  const [labels, setLabels] = useState<any[]>([])
+  const [selectedLabel, setSelectedLabel] = useState<any>(null)
+  const [showLabelBox, setShowLabelBox] = useState(false)
+  const searchParams = useSearchParams()
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-LK').format(value)
@@ -25,18 +30,13 @@ export default function AddExpense() {
     const { data: userData } = await supabase.auth.getUser()
     const user = userData.user
 
-    if (!accountId) {
-      alert('Please select an account')
-      return
-    }
-  
     if (!user) {
-      alert('Not logged in')
+      toast.error('Not logged in')
       return
     }
-  
+    
     if (!accountId) {
-      alert('Please select an account')
+      toast.error('Please select an account')
       return
     }
 
@@ -48,7 +48,7 @@ export default function AddExpense() {
       .single()
   
     if (accError || !accountData) {
-      alert('Account fetch failed')
+      toast.error('Account fetch failed')
       return
     }
   
@@ -57,23 +57,23 @@ export default function AddExpense() {
 
             // ❌ invalid input
     if (!amount || isNaN(expenseAmount)) {
-      alert('Please enter a valid amount')
+      toast.error('Please enter a valid amount')
       return
     }
 
     // ❌ negative or zero
     if (expenseAmount <= 0) {
-      alert('Amount must be greater than 0')
+      toast.error('Insufficient balance')
       return
     }
   
     if (type === 'expense' && expenseAmount > currentBalance) {
-      alert('Insufficient Balance')
+      toast.error('Insufficient balance to transfer')
       return
     }
 
     if(type === 'transfer' && expenseAmount > currentBalance) {
-      alert('Insufficient balance to transfer')
+      toast.error('Insufficient balance to transfer')
       return
     }
 
@@ -145,12 +145,13 @@ export default function AddExpense() {
         date: new Date().toISOString(),
         account_id: accountId,
         type: type,
-        to_account_id: type === 'transfer' ? toAccountId : null
+        to_account_id: type === 'transfer' ? toAccountId : null,
+        label_id: selectedLabel?.id || null
       },
     ])
   
     if (insertError) {
-      alert(insertError.message)
+      toast.error(insertError.message)
       return
     }
   
@@ -163,7 +164,7 @@ export default function AddExpense() {
     console.log("Update error:", updateError)
   
     if (updateError) {
-      alert(updateError.message)
+      toast.error(updateError.message)
     } else {
       const message =
         type === 'expense'
@@ -171,13 +172,29 @@ export default function AddExpense() {
           : type === 'income'
           ? 'Income added & balance updated!'
           : 'Transfer completed!'
-        alert(message)
-  
+          toast.success(message)
       router.push('/dashboard')
     }
   }
 
   useEffect(() => {
+    const draft = localStorage.getItem('expenseDraft');
+
+    if(draft) {
+      const data = JSON.parse(draft);
+
+      setAmount(data.amount || '')
+      setCategory(data.category || '')
+      setNote(data.note || '')
+      setAccountId(data.accountId || '')
+      setType(data.type || 'expense')
+      setToAccountId(data.toAccountId || '')
+  
+      localStorage.removeItem('expenseDraft')
+    }
+    if(searchParams.get('labelCreated')){
+      toast.success('Label created!');
+    }
     const fetchAccounts = async () => {
       const { data: userData } = await supabase.auth.getUser()
   
@@ -192,8 +209,25 @@ export default function AddExpense() {
         setAccounts(data || [])
       }
     }
-  
+
+    const fetchLabels = async () => {
+      const { data: userData } = await supabase.auth.getUser()
+      const user = userData.user
+    
+      if (!user) return
+    
+      const { data, error } = await supabase
+        .from('labels')
+        .select('*')
+        .eq('user_id', user.id)
+    
+      if (!error) {
+        setLabels(data || [])
+      }
+    }
+
     fetchAccounts()
+    fetchLabels()
   }, [])
 
   return (
@@ -332,6 +366,81 @@ export default function AddExpense() {
             className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
           />
         </div>
+
+        <div className="mb-4 relative">
+  <label className="text-sm text-gray-600">Label</label>
+
+  {/* SELECT BOX */}
+  <div
+    onClick={() => setShowLabelBox(!showLabelBox)}
+    className="w-full mt-1 p-3 border rounded-lg bg-white cursor-pointer flex items-center gap-2"
+  >
+    {selectedLabel ? (
+      <>
+        <div
+          className="w-3 h-3 rounded-full"
+          style={{ backgroundColor: selectedLabel.color }}
+        />
+        <span>{selectedLabel.name}</span>
+      </>
+    ) : (
+      <span className="text-gray-400">Select Label</span>
+    )}
+  </div>
+
+  {/* DROPDOWN */}
+  {showLabelBox && (
+    <div className="absolute z-10 w-full bg-white border rounded-lg mt-1 shadow">
+      
+      {/* NO LABELS */}
+      {labels.length === 0 && (
+        <div className="p-3 text-sm text-gray-500">
+          No labels found
+        </div>
+      )}
+
+      {/* LABEL LIST */}
+      {labels.map((label) => (
+        <div
+          key={label.id}
+          onClick={() => {
+            setSelectedLabel(label)
+            setShowLabelBox(false)
+          }}
+          className="p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+          >
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: label.color }}
+          />
+          <span>{label.name}</span>
+        </div>
+      ))}
+
+      {/* ADD LABEL */}
+      <div
+          onClick={() => {
+            localStorage.setItem(
+              'expenseDraft',
+              JSON.stringify({
+                amount,
+                category,
+                note,
+                accountId,
+                type,
+                toAccountId,
+              })
+            )
+        
+            router.push('/add-label')
+          }}
+        className="p-2 text-indigo-600 cursor-pointer hover:bg-gray-100 border-t"
+      >
+              + Add Label
+            </div>
+          </div>
+        )}
+      </div>
   
         {/* NOTE */}
         <div className="mb-6">
@@ -347,7 +456,12 @@ export default function AddExpense() {
         {/* BUTTON */}
         <button
           onClick={handleAdd}
-          disabled={!amount || Number(amount) <= 0 || !accountId}
+          disabled={
+            !amount ||
+            Number(amount) <= 0 ||
+            !accountId ||
+            (type === 'transfer' && !toAccountId)
+          }
           className="w-full bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {type === 'expense' && 'Add Expense'}
