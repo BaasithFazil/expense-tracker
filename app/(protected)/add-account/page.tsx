@@ -1,9 +1,10 @@
 'use client'
 
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import { Listbox, Transition } from '@headlessui/react'
+import toast from 'react-hot-toast'
 
 
 const options = [
@@ -50,7 +51,12 @@ export default function AddAccount() {
     const user = userData.user
 
     if (!user) {
-      alert('Not logged in')
+      toast.error('Not logged in')
+      return
+    }
+
+    if(!type) {
+      toast.error('Please select the account type')
       return
     }
 
@@ -64,19 +70,26 @@ export default function AddAccount() {
       },
     ])
 
-    if(!type) {
-      alert('Please select the account type')
-      return
-    }
-
-
     if (error) {
-      alert(error.message)
+      toast.error(error.message)
     } else {
-      alert('Account created!')
+      toast.success('Account created!')
       router.push('/dashboard') // go back after creating
     }
   }
+
+  useEffect(()=> {
+    const checkUser = async() => {
+      const {data : {user}} = await supabase.auth.getUser()
+
+      if (!user) {
+        router.push('/login')
+        return
+      }
+    }
+
+    checkUser()
+  }, [])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
@@ -105,7 +118,7 @@ export default function AddAccount() {
           <Listbox value={type} onChange={setType}>
           <div className="relative">
             
-            <Listbox.Button className="bg-white text-gray-400 px-4 py-2 w-full text-left border border-gray-300 rounded-lg">
+            <Listbox.Button className="bg-white text-gray-800 px-4 py-2 w-full text-left border border-gray-300 rounded-lg">
             {options.find((o) => o.value === type)?.label || "Select type"}
             </Listbox.Button>
 
@@ -137,22 +150,6 @@ export default function AddAccount() {
 
           </div>
         </Listbox>
-
-
-          
-
-          {/* <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-full p-2 border rounded"
-          >
-            <option value="">Select type</option>
-            <option value="cash">Cash</option>
-            <option value="debit">Debit Card</option>
-            <option value="credit">Credit Card</option>
-            <option value="savings">Savings</option>
-            <option value="wallet">Wallet</option>
-          </select> */}
         </div>
 
         <div className="mb-4">
@@ -186,9 +183,11 @@ export default function AddAccount() {
   
         {/* BUTTON */}
         <button
-          onClick={handleAddAccount}
-          disabled={!name || !balance}
+          onClick=
+          {handleAddAccount}
+          disabled={!name || !balance || !type}
           className="w-full bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          
         >
           Create Account
         </button>

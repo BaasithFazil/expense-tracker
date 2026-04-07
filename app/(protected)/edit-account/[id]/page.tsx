@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter, useParams } from 'next/navigation'
 import { Listbox, Transition } from '@headlessui/react'
+import toast from 'react-hot-toast'
 
 // const options = ['Cash', 'Debit Card', 'Credit Card', 'Savings', 'Wallet']
 
@@ -68,10 +69,18 @@ export default function EditAccount() {
   }, [id])
 
   const handleUpdate = async () => {
+    const toastId = toast.loading('Updating...')
+
+
+    try {
     const { data: userData } = await supabase.auth.getUser()
     const user = userData.user
+    
 
-    if (!user) return
+    if (!user) {
+      toast.error('User not found', {id: toastId})
+      return
+    }
 
     const newBalance = Number(balance)
     const difference = newBalance - oldBalance
@@ -97,20 +106,73 @@ export default function EditAccount() {
           note: 'Account balance edited',
           type: 'adjustment',
           account_id: id,
-          date : new Date().toISOString
+          date : new Date().toISOString()
         },
       ])
     }
-
-    alert('Account updated!')
-    router.push('/dashboard')
+    toast.success('Updated!', { id: toastId})
+    setTimeout(()=> {
+      router.push('/dashboard')
+    }, 800)
+  }  catch (err) {
+    toast.error('Something', {id: toastId})
   }
+}
+
+
+const handleDelete = async () => {
+  const confirmDelete = confirm(
+    `Delete this account with LKR ${balance}? This cannot be undone.`
+  )
+
+  if (!confirmDelete) return
+
+  const toastId = toast.loading('Deleting account...')
+
+  try {
+    const { data: userData } = await supabase.auth.getUser()
+    const user = userData.user
+
+    if (!user) {
+      toast.error('Not logged in', { id: toastId })
+      return
+    }
+
+    // 🔥 STEP 3 — Delete ALL related transactions
+    const { error: expError } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('user_id', user.id)
+      .or(`account_id.eq.${id},to_account_id.eq.${id}`)
+
+    if (expError) throw expError
+
+    // 🔥 STEP 4 — Delete account
+    const { error: accError } = await supabase
+      .from('accounts')
+      .delete()
+      .eq('id', id)
+
+    if (accError) throw accError
+
+    // ✅ Success
+    toast.success('Account deleted!', { id: toastId })
+
+    setTimeout(() => {
+      router.push('/dashboard')
+    }, 800)
+
+  } catch (err) {
+    console.error(err)
+    toast.error('Failed to delete account', { id: toastId })
+  }
+}
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-2xl border">
+    <div className="min-h-screen bg-gray-100 px-4 py-6 flex justify-center md:items-center">
+      <div className="w-full max-w-sm md:max-w-md lg:max-w-lg bg-white p-5 md:p-8 rounded-2xl shadow-2xl border">
 
-        <h2 className="text-2xl font-bold mb-6 text-center">
+        <h2 className="text-xl md:text-2xl font-bold text-center max-w-xl xl:max-w-2xl">
           Edit Account ✏️
         </h2>
 
@@ -131,7 +193,7 @@ export default function EditAccount() {
           <Listbox value={type} onChange={setType}>
           <div className="relative">
             
-            <Listbox.Button className="bg-white text-gray-400 px-4 py-2 w-full text-left border border-gray-300 rounded-lg">
+            <Listbox.Button className="bg-white text-black px-4 py-2 w-full text-left border border-gray-500 rounded-lg">
             {options.find((o) => o.value === type)?.label || "Select type"}
             </Listbox.Button>
 
@@ -144,7 +206,7 @@ export default function EditAccount() {
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Listbox.Options className="absolute z-10 mt-2 w-full text-black bg-white shadow-lg rounded-lg border border-gray-300">
+              <Listbox.Options className="absolute z-10 mt-2 w-full text-black bg-white shadow-lg rounded-lg border border-gray-600">
                 {options.map((option) => (
                   <Listbox.Option
                     key={option.label}
@@ -208,9 +270,17 @@ export default function EditAccount() {
         {/* BUTTON */}
         <button
           onClick={handleUpdate}
-          className="w-full bg-indigo-600 text-white p-3 rounded-lg"
+          disabled={!name || !balance || !type}
+          className="w-full bg-indigo-600 text-white py-2 md:py-3 rounded-lg"
         >
           Update Account
+        </button>
+
+        <button
+          onClick={handleDelete}
+          className="w-full mt-3 bg-red-500 text-white py-2 md:py-3 rounded-lg hover:bg-red-600 transition"
+        >
+          Delete Account
         </button>
 
         <button
