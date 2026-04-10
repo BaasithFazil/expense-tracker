@@ -531,7 +531,7 @@ export default function Dashboard() {
   
                   <div className="flex gap-3 text-sm">
                     <button
-                      onClick={() => startEdit(exp)}
+                      onClick={() => router.push(`/edit-expense/${exp.id}`)}
                       className="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
                     >
                       Edit
