@@ -51,7 +51,9 @@ export default function AccountDetails() {
           *,
           account:account_id (id, name),
           to_account:to_account_id (id, name),
-          label:label_id (id, name, color)
+          label:label_id (id, name, color),
+          category:category_id (name),
+          subcategory:subcategory_id (name)
         `)
         .or(`account_id.eq.${id},to_account_id.eq.${id}`)
         .order('date', { ascending: false })
@@ -144,7 +146,12 @@ export default function AccountDetails() {
             className="bg-white p-4 rounded-xl shadow border"
           >
             <p className="text-sm text-gray-500">
-              {tx.category}
+            <p className="text-sm text-gray-500">
+                  {tx.subcategory?.name ||
+                    (tx.note === 'Account balance edited'
+                      ? 'Account Balance Edited'
+                      : 'Uncategorized')}
+                </p>
             </p>
 
             <p className="text-xs text-gray-400">

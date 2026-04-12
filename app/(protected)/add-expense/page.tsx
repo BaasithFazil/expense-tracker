@@ -21,6 +21,10 @@ export default function AddExpense() {
   const [selectedLabel, setSelectedLabel] = useState<any>(null)
   const [showLabelBox, setShowLabelBox] = useState(false)
   const searchParams = useSearchParams()
+  const [categories, setCategories] = useState<any[]>([])
+  const [subcategories, setSubcategories] = useState<any[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<any>(null)
+  const [selectedSub, setSelectedSub] = useState<any>(null)
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-LK').format(value)
@@ -39,6 +43,15 @@ export default function AddExpense() {
       toast.error('Please select an account')
       return
     }
+
+    if (!selectedCategory || !selectedSub) {
+      toast.error('Please select a category & sub-category')
+      return
+    }
+
+
+
+
 
     // 💰 1. Get account
     const { data: accountData, error: accError } = await supabase
@@ -140,7 +153,8 @@ export default function AddExpense() {
       {
         user_id: user.id,
         amount: expenseAmount,
-        category: category,
+        category_id: selectedCategory?.id,
+        subcategory_id: selectedSub?.id,
         note: note,
         date: new Date().toISOString(),
         account_id: accountId,
@@ -189,6 +203,11 @@ export default function AddExpense() {
       setAccountId(data.accountId || '')
       setType(data.type || 'expense')
       setToAccountId(data.toAccountId || '')
+
+      setSelectedCategory(data.selectedCategory || null)
+      setSelectedSub(data.selectedSub || null)
+
+      setSelectedLabel(data.selectedLabel || null)
   
       localStorage.removeItem('expenseDraft')
     }
@@ -210,6 +229,29 @@ export default function AddExpense() {
       }
     }
 
+    const fetchCategories = async () => {
+      const { data: userData } = await supabase.auth.getUser()
+      if (!userData.user) return
+    
+      const { data } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', userData.user.id)
+    
+      setCategories(data || [])
+    }
+    
+    const fetchSub = async () => {
+      const { data } = await supabase
+        .from('subcategories')
+        .select('*')
+    
+      setSubcategories(data || [])
+    }
+    
+    fetchCategories()
+    fetchSub()
+
     const fetchLabels = async () => {
       const { data: userData } = await supabase.auth.getUser()
       const user = userData.user
@@ -229,6 +271,14 @@ export default function AddExpense() {
     fetchAccounts()
     fetchLabels()
   }, [])
+
+
+  console.log("categories", categories)
+console.log("subcategories", subcategories)
+
+
+
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
@@ -356,15 +406,30 @@ export default function AddExpense() {
           )}
         </div>
   
-        {/* CATEGORY */}
-        <div className="mb-4">
+        <div className="mb-4 relative">
           <label className="text-sm text-gray-600">Category</label>
-          <input
-            placeholder="Food, Travel, Bills..."
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-          />
+          <div
+           onClick={() => {
+            localStorage.setItem(
+              'expenseDraft',
+              JSON.stringify({
+                amount,
+                note,
+                accountId,
+                type,
+                toAccountId,
+                selectedCategory,
+                selectedSub,
+                selectedLabel
+              })
+            )
+          
+            router.push('/select-category')
+          }}>
+            {selectedSub
+              ? `${selectedCategory.name} → ${selectedSub.name}`
+              : 'Select Category'}
+          </div>
         </div>
 
         <div className="mb-4 relative">
@@ -390,7 +455,7 @@ export default function AddExpense() {
 
   {/* DROPDOWN */}
   {showLabelBox && (
-    <div className="absolute z-10 w-full bg-white border rounded-lg mt-1 shadow">
+    <div className="absolute z-50 w-full bg-white border rounded-lg mt-1 shadow">
       
       {/* NO LABELS */}
       {labels.length === 0 && (
@@ -429,6 +494,9 @@ export default function AddExpense() {
                 accountId,
                 type,
                 toAccountId,
+                selectedCategory,
+                selectedSub,
+                selectedLabel
               })
             )
         

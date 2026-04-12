@@ -37,11 +37,14 @@ export default function TransactionsPage() {
     let query = supabase
       .from('expenses')
       .select(`
-        *,
-        account:account_id (name),
-        to_account:to_account_id (name),
-        label:label_id (name, color)
-      `)
+      *,
+      account:account_id (name),
+      to_account:to_account_id (name),
+      label:label_id (name, color),
+      category:category_id (name),
+      subcategory:subcategory_id (name)
+    `)
+
       .order('date', { ascending: false })
 
     if (filterType !== 'all') {
@@ -55,6 +58,7 @@ export default function TransactionsPage() {
     const { data: txData } = await query
 
     setTransactions(txData || [])
+
   }
 
   useEffect(() => {
@@ -108,41 +112,24 @@ export default function TransactionsPage() {
       {/* TRANSACTIONS */}
       <div className="space-y-3">
         {transactions.map((tx) => (
-          <div key={tx.id} className="bg-white p-4 rounded-xl shadow">
+          console.log("TX ITEM:", tx),
+          <div key={tx.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
 
-            <p className="text-sm text-gray-500">{tx.category}</p>
-            <p className="text-xs text-gray-400">{tx.note}</p>
-            <p className="text-xs text-gray-400">
-              {new Date(tx.date).toLocaleDateString()}
-            </p>
+          {/* TOP ROW */}
+          <div className="flex justify-between items-start">
 
-            {/* ACCOUNT INFO */}
-            <p className="text-sm font-semibold text-gray-500">
-              {tx.type === 'transfer'
-                ? `${tx.account?.name} → ${tx.to_account?.name}`
-                : tx.account?.name}
-            </p>
+            <div>
+              <p className="text-sm font-bold text-gray-800">
+                {tx.subcategory?.name || (tx.note === 'Account balance edited' ? 'Account Balance Edited' : 'Uncategorized')}
+              </p>
 
-            {/* LABEL */}
-            {tx.label && (
-              <div
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs mt-2"
-                style={{
-                  backgroundColor: tx.label.color + '20',
-                  color: tx.label.color,
-                }}
-              >
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: tx.label.color }}
-                />
-                {tx.label.name}
-              </div>
-            )}
+              <p className="text-xs text-gray-400 mt-1">
+                {new Date(tx.date).toLocaleDateString()}
+              </p>
+            </div>
 
-            {/* AMOUNT */}
             <p
-              className={`font-bold ${
+              className={`text-lg font-bold ${
                 tx.type === 'expense'
                   ? 'text-red-500'
                   : tx.type === 'income'
@@ -156,8 +143,37 @@ export default function TransactionsPage() {
                 ? '+'
                 : '↔'} LKR {formatCurrency(tx.amount)}
             </p>
+          </div>
 
-            <p className="text-xs uppercase font-bold">{tx.type}</p>
+          {/* ACCOUNT */}
+          <p className="text-xs text-gray-500 mt-2">
+            {tx.type === 'transfer'
+              ? `${tx.account?.name} → ${tx.to_account?.name}`
+              : tx.account?.name}
+          </p>
+
+          {/* LABEL */}
+          {tx.label && (
+            <div
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs mt-2"
+              style={{
+                backgroundColor: tx.label.color + '20',
+                color: tx.label.color,
+              }}
+            >
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: tx.label.color }}
+              />
+              {tx.label.name}
+            </div>
+          )}
+
+          {/* NOTE */}
+          {tx.note && (
+            <p className="text-xs text-gray-400 mt-2">{tx.note}</p>
+          )}
+
           </div>
         ))}
       </div>

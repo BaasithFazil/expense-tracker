@@ -13,7 +13,6 @@ export default function Dashboard() {
   const router = useRouter()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editAmount, setEditAmount] = useState('')
-  const [editCategory, setEditCategory] = useState('')
   const [editNote, setEditNote] = useState('')
   const [accounts, setAccounts] = useState<any[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -173,14 +172,6 @@ export default function Dashboard() {
     await fetchExpenses()
   }
 
-
-  const startEdit = (exp: any) => {
-    setEditingId(exp.id)
-    setEditAmount(exp.amount)
-    setEditCategory(exp.category)
-    setEditNote(exp.note)
-  }
-
   const handleUpdate = async (id: string, oldAmount: number) => {
     const newAmount = Number(editAmount)
   
@@ -214,20 +205,6 @@ export default function Dashboard() {
     const difference = oldAmount - newAmount
     const newBalance = accountData.balance + difference
   
-    // 💰 4. Update expense
-    const { error: expError } = await supabase
-      .from('expenses')
-      .update({
-        amount: newAmount,
-        category: editCategory,
-        note: editNote,
-      })
-      .eq('id', id)
-  
-    if (expError) {
-      alert(expError.message)
-      return
-    }
   
     // 💰 5. Update account
     const { error: accError } = await supabase
@@ -281,8 +258,11 @@ export default function Dashboard() {
       .from('expenses')
       .select(`
       *,
-      account:accounts!expenses_account_id_fkey(name),
-      to_account:accounts!expenses_to_account_id_fkey(name)
+      account:account_id (name),
+      to_account:to_account_id (name),
+      label:label_id (name, color),
+      category:category_id (name),
+      subcategory:subcategory_id (name)
     `)
       .eq('user_id', user.id)
   
@@ -339,6 +319,7 @@ export default function Dashboard() {
         </div>
       </div>
     )
+
   }
 
  return (
@@ -455,116 +436,85 @@ export default function Dashboard() {
         <div className="space-y-3">
           
           
-          {expenses.map((exp) => (
-            <div
-              key={exp.id}
-              className="bg-white p-4 rounded-xl shadow border"
-            >
-              {editingId === exp.id ? (
-                <>
-                  <input
-                    value={editAmount}
-                    onChange={(e) => setEditAmount(e.target.value)}
-                    className="w-full p-2 mb-2 border rounded"
-                  />
-  
-                  <input
-                    value={editCategory}
-                    onChange={(e) => setEditCategory(e.target.value)}
-                    className="w-full p-2 mb-2 border rounded"
-                  />
-  
-                  <input
-                    value={editNote}
-                    onChange={(e) => setEditNote(e.target.value)}
-                    className="w-full p-2 mb-2 border rounded"
-                  />
-  
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleUpdate(exp.id, exp.amount)}
-                      className="bg-indigo-600 text-white px-3 py-1 rounded"
-                    >
-                      Save
-                    </button>
-  
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="bg-gray-300 px-3 py-1 rounded"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-sm text-gray-500">
-                      {exp.category}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {exp.note}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {new Date(exp.date).toLocaleDateString()}
-                    </p>
-                    <p className="text-sm font-semibold text-gray-500">
-                      {exp.type === 'transfer'
-                        ? `${exp.account?.name} → ${exp.to_account?.name}`
-                        : exp.account?.name}
-                    </p>
+        {expenses.map((exp) => {
+  console.log('THIS:', exp.subcategory?.name)
 
-                    <p className={`font-bold uppercase ${
-                      exp.type === 'expense'
-                        ? 'text-red-500'
-                        : exp.type === 'income'
-                        ? 'text-green-500'
-                        : 'text-blue-500'
-                    }`}>
-                      {exp.type === 'expense'
-                        ? '-'
-                        : exp.type === 'income'
-                        ? '+'
-                        : '↔'} LKR {exp.amount}
-                    </p>
-                  </div>
-  
-                  <div className="flex gap-3 text-sm">
-                    <button
-                      onClick={() => router.push(`/edit-expense/${exp.id}`)}
-                      className="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
-                    >
-                      Edit
-                    </button>
-  
-                    <button
-                      onClick={() => handleDelete(exp.id)}
-                      className="px-3 py-1 text-sm bg-red-100 text-red-600 rounded hover:bg-red-200"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
+  return (
+    <div
+      key={exp.id}
+      className="bg-white p-4 rounded-xl shadow border"
+    >
+        {editingId === exp.id ? (
+        <></> // keep empty for now
+          ) : (
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-500">
+                  {exp.subcategory?.name ||
+                    (exp.note === 'Account balance edited'
+                      ? 'Account Balance Edited'
+                      : 'Uncategorized')}
+                </p>
 
-                  <p
-                    className={`text-xs font-bold uppercase ${
-                      exp.type === 'expense'
-                        ? 'text-red-500'
-                        : exp.type === 'income'
-                        ? 'text-green-500'
-                        : 'text-blue-500'
-                    }`}
-                  >
-                    {exp.type === 'expense'
-                    ? 'Expense'
+                <p className="text-xs text-gray-400">
+                  {exp.note}
+                </p>
+
+                <p className="text-xs text-gray-400">
+                  {new Date(exp.date).toLocaleDateString()}
+                </p>
+
+                <p className="text-sm font-semibold text-gray-500">
+                  {exp.type === 'transfer'
+                    ? `${exp.account?.name} → ${exp.to_account?.name}`
+                    : exp.account?.name}
+                </p>
+
+                <p className={`font-bold text-lg ${
+                  exp.type === 'expense'
+                    ? 'text-red-500'
                     : exp.type === 'income'
-                    ? 'Income'
-                    : 'Transfer'
-                    }
-                  </p>
+                    ? 'text-green-500'
+                    : 'text-blue-500'
+                }`}>
+                  {exp.type === 'expense'
+                    ? '-'
+                    : exp.type === 'income'
+                    ? '+'
+                    : '↔'} LKR {formatCurrency(exp.amount)}
+                </p>
+              </div>
+
+              <div className="flex gap-3 text-sm">
+                <button
+                  onClick={() => router.push(`/edit-expense/${exp.id}`)}
+                  className="px-3 py-1 bg-blue-100 text-blue-600 rounded"
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={() => handleDelete(exp.id)}
+                  className="px-3 py-1 bg-red-100 text-red-600 rounded"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
-          ))}
+          )}
+
+          <p className={`text-xs font-bold uppercase ${
+            exp.type === 'expense'
+              ? 'text-red-500'
+              : exp.type === 'income'
+              ? 'text-green-500'
+              : 'text-blue-500'
+          }`}>
+            {exp.type}
+          </p>
+        </div>
+      )
+    })}
           {isModalOpen && (
             <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
               <div className="bg-white p-6 rounded w-80">
