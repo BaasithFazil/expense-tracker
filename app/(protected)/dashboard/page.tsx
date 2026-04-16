@@ -5,6 +5,10 @@ import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import { getProfile } from '@/helper/getProfile'
 import Navbar from '@/components/Navbar'
+import TransactionCard from '@/components/TransactionCard'
+import toast from 'react-hot-toast'
+import { deleteTransaction } from '@/services/transactionService'
+import { getAccounts, getTransactions } from '@/services/accountServices'
 
 
 export default function Dashboard() {
@@ -23,22 +27,22 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   
   
-  const handleSave = async () => {
-    const newAmount = Number(editValue)
+  // const handleSave = async () => {
+  //   const newAmount = Number(editValue)
   
-    if (isNaN(newAmount) || newAmount < 0) {
-      alert('Invalid amount')
-      return
-    }
+  //   if (isNaN(newAmount) || newAmount < 0) {
+  //     alert('Invalid amount')
+  //     return
+  //   }
   
-    await supabase
-      .from('accounts')
-      .update({ balance: newAmount })
-      .eq('id', selectedAccount.id)
+  //   await supabase
+  //     .from('accounts')
+  //     .update({ balance: newAmount })
+  //     .eq('id', selectedAccount.id)
   
-    await fetchAccounts()
-    setIsModalOpen(false)
-  }
+  //   await fetchAccounts()
+  //   setIsModalOpen(false)
+  // }
 
   const totalExpenses = expenses
   .filter((e)=> e.type === 'expense')
@@ -79,98 +83,105 @@ export default function Dashboard() {
     setAccounts(accData || [])
   }
 
+
   const handleDelete = async (id: string) => {
-    const confirmDelete = confirm('Are you sure?')
-    if (!confirmDelete) return
-  
-    // 1️⃣ Get the expense details first
-    const { data: expense, error: fetchError } = await supabase
-      .from('expenses')
-      .select('*')
-      .eq('id', id)
-      .single()
-  
-    if (fetchError || !expense) {
-      alert('Failed to fetch expense')
-      return
+    try {
+      await deleteTransaction(id)
+      await reloadData()
+    } catch (err: any) {
+      alert(err.message)
     }
-  
-    // 2️⃣ Get the related account
-    const { data: account, error: accountError } = await supabase
-      .from('accounts')
-      .select('balance')
-      .eq('id', expense.account_id)
-      .single()
-  
-    if (accountError || !account) {
-      alert('Failed to fetch account')
-      return
-    }
-  
-    // 3️⃣ Restore balance (FIXED LOGIC)
-
-      if (expense.type === 'expense') {
-        // add back
-        await supabase
-          .from('accounts')
-          .update({
-            balance: account.balance + expense.amount,
-          })
-          .eq('id', expense.account_id)
-      }
-
-      else if (expense.type === 'income') {
-        // remove added income
-        await supabase
-          .from('accounts')
-          .update({
-            balance: account.balance - expense.amount,
-          })
-          .eq('id', expense.account_id)
-      }
-
-      else if (expense.type === 'transfer') {
-        // 🔥 1️⃣ revert FROM account
-        await supabase
-          .from('accounts')
-          .update({
-            balance: account.balance + expense.amount,
-          })
-          .eq('id', expense.account_id)
-
-        // 🔥 2️⃣ get TO account
-        const { data: toAccount } = await supabase
-          .from('accounts')
-          .select('balance')
-          .eq('id', expense.to_account_id)
-          .single()
-
-        if (toAccount) {
-          // 🔥 3️⃣ revert TO account
-          await supabase
-            .from('accounts')
-            .update({
-              balance: toAccount.balance - expense.amount,
-            })
-            .eq('id', expense.to_account_id)
-        }
-      }
-  
-    // 4️⃣ Delete the expense
-    const { error: deleteError } = await supabase
-      .from('expenses')
-      .delete()
-      .eq('id', id)
-  
-    if (deleteError) {
-      alert(deleteError.message)
-      return
-    }
-  
-    // 5️⃣ Refresh EVERYTHING (IMPORTANT)
-    await fetchAccounts()
-    await fetchExpenses()
   }
+
+  // const handleDelete = async (id: string) => {  
+  //   // 1️⃣ Get the expense details first
+  //   const { data: expense, error: fetchError } = await supabase
+  //     .from('expenses')
+  //     .select('*')
+  //     .eq('id', id)
+  //     .single()
+  
+  //   if (fetchError || !expense) {
+  //     alert('Failed to fetch expense')
+  //     return
+  //   }
+  
+  //   // 2️⃣ Get the related account
+  //   const { data: account, error: accountError } = await supabase
+  //     .from('accounts')
+  //     .select('balance')
+  //     .eq('id', expense.account_id)
+  //     .single()
+  
+  //   if (accountError || !account) {
+  //     alert('Failed to fetch account')
+  //     return
+  //   }
+  
+  //   // 3️⃣ Restore balance
+
+  //     if (expense.type === 'expense') {
+  //       // add back
+  //       await supabase
+  //         .from('accounts')
+  //         .update({
+  //           balance: account.balance + expense.amount,
+  //         })
+  //         .eq('id', expense.account_id)
+  //     }
+
+  //     else if (expense.type === 'income') {
+  //       // remove added income
+  //       await supabase
+  //         .from('accounts')
+  //         .update({
+  //           balance: account.balance - expense.amount,
+  //         })
+  //         .eq('id', expense.account_id)
+  //     }
+
+  //     else if (expense.type === 'transfer') {
+  //       // 🔥 1️⃣ revert FROM account
+  //       await supabase
+  //         .from('accounts')
+  //         .update({
+  //           balance: account.balance + expense.amount,
+  //         })
+  //         .eq('id', expense.account_id)
+
+  //       // 🔥 2️⃣ get TO account
+  //       const { data: toAccount } = await supabase
+  //         .from('accounts')
+  //         .select('balance')
+  //         .eq('id', expense.to_account_id)
+  //         .single()
+
+  //       if (toAccount) {
+  //         // 🔥 3️⃣ revert TO account
+  //         await supabase
+  //           .from('accounts')
+  //           .update({
+  //             balance: toAccount.balance - expense.amount,
+  //           })
+  //           .eq('id', expense.to_account_id)
+  //       }
+  //     }
+  
+  //   // 4️⃣ Delete the expense
+  //   const { error: deleteError } = await supabase
+  //     .from('expenses')
+  //     .delete()
+  //     .eq('id', id)
+  
+  //   if (deleteError) {
+  //     alert(deleteError.message)
+  //     return
+  //   }
+  
+  //   // 5️⃣ Refresh EVERYTHING (IMPORTANT)
+  //   await fetchAccounts()
+  //   await fetchExpenses()
+  // }
 
   const handleUpdate = async (id: string, oldAmount: number) => {
     const newAmount = Number(editAmount)
@@ -229,50 +240,19 @@ export default function Dashboard() {
     0
   )
 
-  const fetchAccounts = async ()=> {
-   const { data: userData} = await supabase.auth.getUser()
-   const user = userData.user
-
-   if(!user) return
-   const  {data, error} = await supabase
-    .from('accounts')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', {ascending: true})
-
-  if (error) {
-    console.error(error)
-    return
-  }
-  setAccounts(data)
-  }
-
-  const fetchExpenses = async () => {
-    const { data: userData} = await supabase.auth.getUser()
-
-    const user = userData.user
-
-    if(!user) return
-
-    const {data, error} = await supabase
-      .from('expenses')
-      .select(`
-      *,
-      account:account_id (name),
-      to_account:to_account_id (name),
-      label:label_id (name, color),
-      category:category_id (name),
-      subcategory:subcategory_id (name)
-    `)
-      .eq('user_id', user.id)
-  
-    if (error) {
-      console.error(error)
-      return
+    const loadDashboardData = async () => {
+      const { data: userData } = await supabase.auth.getUser()
+      const user = userData.user
+    
+      if (!user) return
+    
+      const accountsData = await getAccounts(user.id)
+      const txData = await getTransactions(user.id)
+    
+      setAccounts(accountsData)
+      setExpenses(txData)
     }
-  
-    setExpenses(data)
-  }
+
   useEffect(() => {
     const init = async () => {
       // 1️⃣ Get user
@@ -297,8 +277,7 @@ export default function Dashboard() {
       setProfile(profileData)
   
       // 3️⃣ Fetch app data
-      await fetchAccounts()
-      await fetchExpenses()
+      await loadDashboardData()
   
       setLoading(false)
     }
@@ -425,7 +404,7 @@ export default function Dashboard() {
       </div>
 
 
-            {/* EXPENSES */}
+        {/* EXPENSES */}
             <div>
         <h2 className="text-lg font-semibold mb-3">Recent Transactions</h2>
   
@@ -434,128 +413,91 @@ export default function Dashboard() {
         )}
   
         <div className="space-y-3">
-          
-          
         {expenses.map((exp) => {
-  console.log('THIS:', exp.subcategory?.name)
+ 
+        return (
+          <TransactionCard
+          key={exp.id}
+          tx={exp}
+          formatCurrency={formatCurrency}
+          router={router}
+          handleDelete={handleDelete}
+          />
+    // <div
+    //   key={exp.id}
+    //   className="bg-white p-4 rounded-xl shadow border"
+    // >
+    //     {editingId === exp.id ? (
+    //     <></> // keep empty for now
+    //       ) : (
+    //         <div className="flex justify-between items-center">
+    //           <div>
+    //             <p className="text-sm text-gray-500">
+    //               {exp.subcategory?.name ||
+    //                 (exp.note === 'Account balance edited'
+    //                   ? 'Account Balance Edited'
+    //                   : 'Uncategorized')}
+    //             </p>
 
-  return (
-    <div
-      key={exp.id}
-      className="bg-white p-4 rounded-xl shadow border"
-    >
-        {editingId === exp.id ? (
-        <></> // keep empty for now
-          ) : (
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm text-gray-500">
-                  {exp.subcategory?.name ||
-                    (exp.note === 'Account balance edited'
-                      ? 'Account Balance Edited'
-                      : 'Uncategorized')}
-                </p>
+    //             <p className="text-xs text-gray-400">
+    //               {exp.note}
+    //             </p>
 
-                <p className="text-xs text-gray-400">
-                  {exp.note}
-                </p>
+    //             <p className="text-xs text-gray-400">
+    //               {new Date(exp.date).toLocaleDateString()}
+    //             </p>
 
-                <p className="text-xs text-gray-400">
-                  {new Date(exp.date).toLocaleDateString()}
-                </p>
+    //             <p className="text-sm font-semibold text-gray-500">
+    //               {exp.type === 'transfer'
+    //                 ? `${exp.account?.name} → ${exp.to_account?.name}`
+    //                 : exp.account?.name}
+    //             </p>
 
-                <p className="text-sm font-semibold text-gray-500">
-                  {exp.type === 'transfer'
-                    ? `${exp.account?.name} → ${exp.to_account?.name}`
-                    : exp.account?.name}
-                </p>
+    //             <p className={`font-bold text-lg ${
+    //               exp.type === 'expense'
+    //                 ? 'text-red-500'
+    //                 : exp.type === 'income'
+    //                 ? 'text-green-500'
+    //                 : 'text-blue-500'
+    //             }`}>
+    //               {exp.type === 'expense'
+    //                 ? '-'
+    //                 : exp.type === 'income'
+    //                 ? '+'
+    //                 : '↔'} LKR {formatCurrency(exp.amount)}
+    //             </p>
+    //           </div>
 
-                <p className={`font-bold text-lg ${
-                  exp.type === 'expense'
-                    ? 'text-red-500'
-                    : exp.type === 'income'
-                    ? 'text-green-500'
-                    : 'text-blue-500'
-                }`}>
-                  {exp.type === 'expense'
-                    ? '-'
-                    : exp.type === 'income'
-                    ? '+'
-                    : '↔'} LKR {formatCurrency(exp.amount)}
-                </p>
-              </div>
+    //           <div className="flex gap-3 text-sm">
+    //             <button
+    //               onClick={() => router.push(`/edit-expense/${exp.id}`)}
+    //               className="px-3 py-1 bg-blue-100 text-blue-600 rounded"
+    //             >
+    //               Edit
+    //             </button>
 
-              <div className="flex gap-3 text-sm">
-                <button
-                  onClick={() => router.push(`/edit-expense/${exp.id}`)}
-                  className="px-3 py-1 bg-blue-100 text-blue-600 rounded"
-                >
-                  Edit
-                </button>
+    //             <button
+    //               onClick={() => handleDelete(exp.id)}
+    //               className="px-3 py-1 bg-red-100 text-red-600 rounded"
+    //             >
+    //               Delete
+    //             </button>
+    //           </div>
+    //         </div>
+    //       )}
 
-                <button
-                  onClick={() => handleDelete(exp.id)}
-                  className="px-3 py-1 bg-red-100 text-red-600 rounded"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          )}
-
-          <p className={`text-xs font-bold uppercase ${
-            exp.type === 'expense'
-              ? 'text-red-500'
-              : exp.type === 'income'
-              ? 'text-green-500'
-              : 'text-blue-500'
-          }`}>
-            {exp.type}
-          </p>
-        </div>
+    //       <p className={`text-xs font-bold uppercase ${
+    //         exp.type === 'expense'
+    //           ? 'text-red-500'
+    //           : exp.type === 'income'
+    //           ? 'text-green-500'
+    //           : 'text-blue-500'
+    //       }`}>
+    //         {exp.type}
+    //       </p>
+    //     </div>
       )
     })}
-          {isModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-              <div className="bg-white p-6 rounded w-80">
-                
-                <h2 className="text-lg font-bold mb-4">
-                  Edit{selectedAccount?.name}
-                </h2>
-
-                <input
-                  type="text"
-                  value={editValue}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/,/g, '')
-                    if (!/^\d*$/.test(raw)) return
-                    setEditValue(raw)
-                  }}
-                  className="border p-2 w-full rounded"
-                />
-
-                <div className="flex justify-end gap-2 mt-4">
-                  
-                  {/* Cancel */}
-                  <button
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-3 py-1 border rounded"
-                  >
-                    Cancel
-                  </button>
-
-                  {/* ✅ THIS is where handleSave goes */}
-                  <button
-                    onClick={handleSave}
-                    className="px-3 py-1 bg-green-500 text-white rounded"
-                  >
-                    Save
-                  </button>
-
-                </div>
-              </div>
-            </div>
-            )}
         </div>
       </div>
 
