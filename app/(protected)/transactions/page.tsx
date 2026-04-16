@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
+import TransactionCard from '@/components/TransactionCard'
+import { deleteTransaction, getTransactionsWithFilters} from '@/services/transactionService'
+import { error } from 'console'
+import { getLabels } from '@/services/labelService'
 
 export default function TransactionsPage() {
   const router = useRouter()
@@ -16,54 +20,43 @@ export default function TransactionsPage() {
     return new Intl.NumberFormat('en-LK').format(value)
   }
 
+  
+  useEffect(() => {
+    fetchData()
+  }, [filterType, selectedLabelId])
+
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteTransaction(id)
+      await fetchData()
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+  
   const fetchData = async () => {
     const { data: userData } = await supabase.auth.getUser()
     const user = userData.user
-
+  
     if (!user) {
       router.push('/login')
       return
     }
-
-    // 🟢 Fetch labels
-    const { data: labelData } = await supabase
-      .from('labels')
-      .select('*')
-      .eq('user_id', user.id)
-
-    setLabels(labelData || [])
-
-    // 🟢 Fetch transactions with filters
-    let query = supabase
-      .from('expenses')
-      .select(`
-      *,
-      account:account_id (name),
-      to_account:to_account_id (name),
-      label:label_id (name, color),
-      category:category_id (name),
-      subcategory:subcategory_id (name)
-    `)
-
-      .order('date', { ascending: false })
-
-    if (filterType !== 'all') {
-      query = query.eq('type', filterType)
-    }
-
-    if (selectedLabelId) {
-      query = query.eq('label_id', selectedLabelId)
-    }
-
-    const { data: txData } = await query
-
-    setTransactions(txData || [])
-
+  
+    // ✅ labels still here (simple enough)
+    const labelsData = await getLabels(user.id)
+    setLabels(labelsData || [])
+    
+    // ✅ transactions via service
+    const data = await getTransactionsWithFilters({
+      userId: user.id,
+      filterType,
+      labelId: selectedLabelId,
+    })
+  
+    setTransactions(data || [])
   }
-
-  useEffect(() => {
-    fetchData()
-  }, [filterType, selectedLabelId])
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
@@ -112,69 +105,14 @@ export default function TransactionsPage() {
       {/* TRANSACTIONS */}
       <div className="space-y-3">
         {transactions.map((tx) => (
-          console.log("TX ITEM:", tx),
-          <div key={tx.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
 
-          {/* TOP ROW */}
-          <div className="flex justify-between items-start">
-
-            <div>
-              <p className="text-sm font-bold text-gray-800">
-                {tx.subcategory?.name || (tx.note === 'Account balance edited' ? 'Account Balance Edited' : 'Uncategorized')}
-              </p>
-
-              <p className="text-xs text-gray-400 mt-1">
-                {new Date(tx.date).toLocaleDateString()}
-              </p>
-            </div>
-
-            <p
-              className={`text-lg font-bold ${
-                tx.type === 'expense'
-                  ? 'text-red-500'
-                  : tx.type === 'income'
-                  ? 'text-green-500'
-                  : 'text-blue-500'
-              }`}
-            >
-              {tx.type === 'expense'
-                ? '-'
-                : tx.type === 'income'
-                ? '+'
-                : '↔'} LKR {formatCurrency(tx.amount)}
-            </p>
-          </div>
-
-          {/* ACCOUNT */}
-          <p className="text-xs text-gray-500 mt-2">
-            {tx.type === 'transfer'
-              ? `${tx.account?.name} → ${tx.to_account?.name}`
-              : tx.account?.name}
-          </p>
-
-          {/* LABEL */}
-          {tx.label && (
-            <div
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs mt-2"
-              style={{
-                backgroundColor: tx.label.color + '20',
-                color: tx.label.color,
-              }}
-            >
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: tx.label.color }}
-              />
-              {tx.label.name}
-            </div>
-          )}
-
-          {/* NOTE */}
-          {tx.note && (
-            <p className="text-xs text-gray-400 mt-2">{tx.note}</p>
-          )}
-
-          </div>
+          <TransactionCard
+          key={tx.id}
+          tx={tx}
+          formatCurrency={formatCurrency}
+          router={router}
+          handleDelete={handleDelete}
+          />
         ))}
       </div>
 

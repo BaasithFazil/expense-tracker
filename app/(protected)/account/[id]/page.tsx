@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useParams, useRouter } from 'next/navigation'
+import TransactionCard from '@/components/TransactionCard'
+import { deleteTransaction } from '@/services/transactionService'
 
 export default function AccountDetails() {
   const { id } = useParams()
@@ -45,23 +47,30 @@ export default function AccountDetails() {
 
     setAccount(accData)
 
+    const accountId = Array.isArray(id) ? id[0] : id
+
     let query = supabase
         .from('expenses')
         .select(`
-          *,
-          account:account_id (id, name),
-          to_account:to_account_id (id, name),
-          label:label_id (id, name, color),
-          category:category_id (name),
-          subcategory:subcategory_id (name)
-        `)
-        .or(`account_id.eq.${id},to_account_id.eq.${id}`)
+        *,
+        account:account_id (id, name),
+        to_account:to_account_id (id, name),
+        label:label_id (id, name, color),
+        category:category_id (name),
+        subcategory:subcategory_id (name)
+      `)
+        .or(`account_id.eq.${accountId},to_account_id.eq.${accountId}`)
         .order('date', { ascending: false })
 
-      // ✅ type filter
-      if (filterType !== 'all') {
-        query = query.eq('type', filterType)
-      }
+        
+
+        if (filterType !== 'all') {
+          if (filterType === 'transfer') {
+            query = query.eq('type', 'transfer')
+          } else {
+            query = query.eq('type', filterType)
+          }
+        }
 
       // ✅ label filter
       if (selectedLabelId) {
@@ -85,6 +94,98 @@ export default function AccountDetails() {
       </div>
     )
   }
+
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteTransaction(id)
+      await fetchData()
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+
+
+  // const handleDelete = async (id: string) => {
+  //   // 1. get transaction
+  //   const { data: tx } = await supabase
+  //     .from('expenses')
+  //     .select('*')
+  //     .eq('id', id)
+  //     .single()
+  
+  //   if (!tx) return
+  
+  //   // 2. reverse balances
+  //   if (tx.type === 'expense') {
+  //     const { data: acc } = await supabase
+  //       .from('accounts')
+  //       .select('balance')
+  //       .eq('id', tx.account_id)
+  //       .single()
+
+  //       if(!acc) return
+  
+  //     await supabase
+  //       .from('accounts')
+  //       .update({ balance: acc.balance + tx.amount })
+  //       .eq('id', tx.account_id)
+  //   }
+  
+  //   if (tx.type === 'income') {
+  //     const { data: acc } = await supabase
+  //       .from('accounts')
+  //       .select('balance')
+  //       .eq('id', tx.account_id)
+  //       .single()
+
+  //       if(!acc) return
+  
+  //     await supabase
+  //       .from('accounts')
+  //       .update({ balance: acc.balance - tx.amount })
+  //       .eq('id', tx.account_id)
+  //   }
+  
+  //   if (tx.type === 'transfer') {
+  //     const { data: fromAcc } = await supabase
+  //       .from('accounts')
+  //       .select('balance')
+  //       .eq('id', tx.account_id)
+  //       .single()
+
+  //       if(!fromAcc) return
+  
+  //     const { data: toAcc } = await supabase
+  //       .from('accounts')
+  //       .select('balance')
+  //       .eq('id', tx.to_account_id)
+  //       .single()
+
+  //       if(!toAcc) return
+  
+  //     await supabase
+  //       .from('accounts')
+  //       .update({ balance: fromAcc.balance + tx.amount })
+  //       .eq('id', tx.account_id)
+  
+  //     await supabase
+  //       .from('accounts')
+  //       .update({ balance: toAcc.balance - tx.amount })
+  //       .eq('id', tx.to_account_id)
+  //   }
+  
+  //   // 3. delete
+  //   await supabase
+  //     .from('expenses')
+  //     .delete()
+  //     .eq('id', id)
+  
+  //   // 4. refresh
+  //   fetchData()
+  // }
+
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
@@ -136,74 +237,87 @@ export default function AccountDetails() {
       </h2>
 
       {transactions.length === 0 && (
+          
+        
         <p className="text-gray-500">No transactions found</p>
       )}
 
       <div className="space-y-3">
         {transactions.map((tx) => (
-          <div
-            key={tx.id}
-            className="bg-white p-4 rounded-xl shadow border"
-          >
-            <p className="text-sm text-gray-500">
-            <p className="text-sm text-gray-500">
-                  {tx.subcategory?.name ||
-                    (tx.note === 'Account balance edited'
-                      ? 'Account Balance Edited'
-                      : 'Uncategorized')}
-                </p>
-            </p>
+        <TransactionCard
+        key={tx.id}
+        tx={tx}
+        formatCurrency={formatCurrency}
+        router={router}
+        handleDelete={handleDelete}
+        />
 
-            <p className="text-xs text-gray-400">
-              {tx.note}
-            </p>
 
-            {tx.label && (
-            <div
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs mt-2"
-              style={{
-                backgroundColor: tx.label.color + '20',
-                color: tx.label.color,
-              }}
-            >
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: tx.label.color }}
-              />
-              {tx.label.name}
-            </div>
-          )}
+       
 
-            <p className="text-xs text-gray-400">
-              {new Date(tx.date).toLocaleDateString()}
-            </p>
+          // <div
+          //   key={tx.id}
+          //   className="bg-white p-4 rounded-xl shadow border"
+          // >
+          //   <p className="text-sm text-gray-500">
+          //   <p className="text-sm text-gray-500">
+          //         {tx.subcategory?.name ||
+          //           (tx.note === 'Account balance edited'
+          //             ? 'Account Balance Edited'
+          //             : 'Uncategorized')}
+          //       </p>
+          //   </p>
 
-            <p className="text-sm font-semibold text-gray-500">
-            {tx.type === 'transfer'
-              ? `${tx.account?.name || "unknown"} → ${tx.to_account?.name || "unknown"}`
-              : tx.account?.name || "unkown"}
-          </p>
+          //   <p className="text-xs text-gray-400">
+          //     {tx.note}
+          //   </p>
 
-            <p
-              className={`font-bold ${
-                tx.type === 'expense'
-                  ? 'text-red-500'
-                  : tx.type === 'income'
-                  ? 'text-green-500'
-                  : 'text-blue-500'
-              }`}
-            >
-              {tx.type === 'expense'
-                ? '-'
-                : tx.type === 'income'
-                ? '+'
-                : '↔'} LKR {tx.amount}
-            </p>
+          //   {tx.label && (
+          //   <div
+          //     className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs mt-2"
+          //     style={{
+          //       backgroundColor: tx.label.color + '20',
+          //       color: tx.label.color,
+          //     }}
+          //   >
+          //     <div
+          //       className="w-2 h-2 rounded-full"
+          //       style={{ backgroundColor: tx.label.color }}
+          //     />
+          //     {tx.label.name}
+          //   </div>
+          // )}
 
-            <p className="text-xs uppercase font-bold">
-              {tx.type}
-            </p>
-          </div>
+          //   <p className="text-xs text-gray-400">
+          //     {new Date(tx.date).toLocaleDateString()}
+          //   </p>
+
+          //   <p className="text-sm font-semibold text-gray-500">
+          //   {tx.type === 'transfer'
+          //     ? `${tx.account?.name || "unknown"} → ${tx.to_account?.name || "unknown"}`
+          //     : tx.account?.name || "unkown"}
+          // </p>
+
+          //   <p
+          //     className={`font-bold ${
+          //       tx.type === 'expense'
+          //         ? 'text-red-500'
+          //         : tx.type === 'income'
+          //         ? 'text-green-500'
+          //         : 'text-blue-500'
+          //     }`}
+          //   >
+          //     {tx.type === 'expense'
+          //       ? '-'
+          //       : tx.type === 'income'
+          //       ? '+'
+          //       : '↔'} LKR {tx.amount}
+          //   </p>
+
+          //   <p className="text-xs uppercase font-bold">
+          //     {tx.type}
+          //   </p>
+          // </div>
         ))}
       </div>
         <button
